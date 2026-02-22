@@ -6,6 +6,8 @@ import {
   Tooltip,
   ResponsiveContainer,
   Cell,
+  CartesianGrid,
+  LabelList,
 } from "recharts";
 import { AlertTriangle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -77,11 +79,18 @@ export function QuestionChart({ stats }: QuestionChartProps) {
                 axisLine={false}
                 tickFormatter={(v) => `${v}%`}
               />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
               <Tooltip content={<CustomTooltip />} />
               <Bar dataKey="percent" radius={[4, 4, 0, 0]} maxBarSize={40}>
                 {data.map((_, i) => (
                   <Cell key={i} fill={COLORS[colorKeys[i]]} />
                 ))}
+                <LabelList
+                  dataKey="percent"
+                  position="top"
+                  formatter={(v: number) => `${v.toFixed(1)}%`}
+                  style={{ fontSize: 10, fontWeight: 600, fill: "hsl(var(--foreground))" }}
+                />
               </Bar>
             </BarChart>
           </ResponsiveContainer>

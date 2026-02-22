@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { parse, format } from "date-fns";
 import { CsvUpload } from "@/components/CsvUpload";
@@ -9,7 +9,10 @@ import { DashboardSidebar } from "@/components/DashboardSidebar";
 import { useCsvData } from "@/hooks/use-csv-data";
 import { filterByDateRange } from "@/lib/date-helpers";
 import { groupByCategory, computeGlobalMetrics } from "@/lib/aggregators";
-import { BarChart3 } from "lucide-react";
+import { exportDashboardToPdf } from "@/lib/pdf-export";
+import { BarChart3, FileDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 function parseDateParam(val: string | null): Date | undefined {
   if (!val) return undefined;
@@ -25,6 +28,8 @@ export default function Dashboard() {
   const { rows, questions, isLoaded, isLoading, error, fileName, loadFile, reset } = useCsvData();
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const mainContentRef = useRef<HTMLDivElement>(null);
 
   const startDate = parseDateParam(searchParams.get("startDate"));
   const endDate = parseDateParam(searchParams.get("endDate"));
@@ -108,6 +113,19 @@ export default function Dashboard() {
     el?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
 
+  const handleExportPdf = useCallback(async () => {
+    if (!mainContentRef.current) return;
+    setExporting(true);
+    try {
+      await exportDashboardToPdf(mainContentRef.current);
+      toast.success("PDF exportado com sucesso!");
+    } catch {
+      toast.error("Erro ao exportar PDF.");
+    } finally {
+      setExporting(false);
+    }
+  }, []);
+
   if (!isLoaded) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background p-6">
@@ -148,6 +166,17 @@ export default function Dashboard() {
             fileName={fileName}
             error={error}
           />
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportPdf}
+            disabled={exporting}
+            className="ml-auto"
+          >
+            <FileDown className="mr-1 h-4 w-4" />
+            {exporting ? "Exportando…" : "Exportar PDF"}
+          </Button>
         </div>
       </header>
 
@@ -174,7 +203,7 @@ export default function Dashboard() {
 
         {/* Main content */}
         <main className="flex-1 overflow-y-auto p-4 lg:p-6">
-          <div className="space-y-6">
+          <div ref={mainContentRef} className="space-y-6">
             <MetricsOverview metrics={globalMetrics} />
 
             {categoryGroups.map((group) => (
