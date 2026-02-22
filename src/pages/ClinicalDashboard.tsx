@@ -20,10 +20,11 @@ import {
 import { exportTableToPdf, REPORT_EMITTER } from "@/lib/pdf-export";
 import { Stethoscope, FileDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { HeaderActionsMenu } from "@/components/HeaderActionsMenu";
 import { toast } from "sonner";
 
 export default function ClinicalDashboard () {
-  const { clinical, clinicalLoading, clinicalError, loadClinical } = useAppData();
+  const { clinical, clinicalLoading, clinicalError, loadClinical, clearAllData } = useAppData();
   const rows = clinical?.rows ?? [];
   const questions = clinical?.questions ?? [];
   const isLoaded = clinical !== null;
@@ -100,8 +101,8 @@ export default function ClinicalDashboard () {
         endDate: endDate ? format(endDate, "dd/MM/yyyy") : undefined,
         sector: selectedSector,
         category: selectedCategory !== "__all__" ? selectedCategory : undefined,
-        totalFiltered: filteredRows.length,
-      });
+        totalFiltered: filteredRows.length
+      }, `auditoria-clinica-${format(new Date(), "dd-MM-yyyy")}.pdf`);
       toast.success("PDF exportado com sucesso!");
     } catch {
       toast.error("Erro ao exportar PDF.");
@@ -163,6 +164,8 @@ export default function ClinicalDashboard () {
             <FileDown className="mr-1 h-4 w-4" />
             {exporting ? "Exportando…" : "Exportar PDF"}
           </Button>
+
+          <HeaderActionsMenu onClearData={clearAllData} />
         </div>
       </header>
 
@@ -185,9 +188,9 @@ export default function ClinicalDashboard () {
       <div className="flex flex-1 overflow-hidden">
         <main className="flex-1 overflow-y-auto p-4 pb-10 lg:p-6 lg:pb-10">
           <div className="space-y-6">
-            <AuditTypeChart stats={auditTypeStats} />
 
             <MetricsOverview metrics={globalMetrics} />
+            <AuditTypeChart stats={auditTypeStats} />
 
             <Tabs defaultValue="charts">
               <TabsList>
@@ -213,7 +216,7 @@ export default function ClinicalDashboard () {
         </main>
       </div>
       <footer className="fixed bottom-0 left-0 right-0 z-20 border-t border-border bg-card/90 px-4 py-2 text-center text-xs text-muted-foreground backdrop-blur-sm">
-        Emitido por: {REPORT_EMITTER}
+        Responsável: {REPORT_EMITTER}
       </footer>
     </div>
   );

@@ -1,6 +1,6 @@
 import { jsPDF } from "jspdf";
 
-export const REPORT_EMITTER = "Jéssica Pinho da Silva Oliveira — Gerente de Qualidade";
+export const REPORT_EMITTER = "Jéssica Pinho da Silva Oliveira — Gerente de Qualidade (HMUE)";
 
 export interface PdfFilterInfo {
   startDate?: string;
@@ -35,50 +35,50 @@ const MARGIN = 12;
 const USABLE_W = PAGE_W - MARGIN * 2; // 186 mm
 
 // Column widths (must sum to USABLE_W = 186)
-const W_LABEL   = 13;
-const W_TEXT    = 93;
-const W_CONF    = 22;
-const W_NAO     = 25;
-const W_NA      = 17;
-const W_TOTAL   = 16;
+const W_LABEL = 13;
+const W_TEXT = 93;
+const W_CONF = 22;
+const W_NAO = 25;
+const W_NA = 17;
+const W_TOTAL = 16;
 // Sum: 13+93+22+25+17+16 = 186 ✓
 
-const X_LABEL   = MARGIN;
-const X_TEXT    = X_LABEL  + W_LABEL;
-const X_CONF    = X_TEXT   + W_TEXT;
-const X_NAO     = X_CONF   + W_CONF;
-const X_NA      = X_NAO    + W_NAO;
-const X_TOTAL   = X_NA     + W_NA;
+const X_LABEL = MARGIN;
+const X_TEXT = X_LABEL + W_LABEL;
+const X_CONF = X_TEXT + W_TEXT;
+const X_NAO = X_CONF + W_CONF;
+const X_NA = X_NAO + W_NAO;
+const X_TOTAL = X_NA + W_NA;
 
-const FS_TITLE  = 13;   // pt
-const FS_META   = 8;    // pt
-const FS_HEAD   = 7;    // pt – column headers
-const FS_BODY   = 7.5;  // pt – question rows
-const FS_CAT    = 8;    // pt – category header
+const FS_TITLE = 13;   // pt
+const FS_META = 8;    // pt
+const FS_HEAD = 7;    // pt – column headers
+const FS_BODY = 7.5;  // pt – question rows
+const FS_CAT = 8;    // pt – category header
 
 // Row sizing
-const PT_TO_MM  = 0.353;
-const LINE_H    = FS_BODY * PT_TO_MM * 1.3; // ~3.45 mm per line at FS_BODY
-const ROW_PAD   = 1.8;  // mm padding top + bottom inside each row
+const PT_TO_MM = 0.353;
+const LINE_H = FS_BODY * PT_TO_MM * 1.3; // ~3.45 mm per line at FS_BODY
+const ROW_PAD = 1.8;  // mm padding top + bottom inside each row
 const MIN_ROW_H = LINE_H + ROW_PAD * 2;
 const TABLE_HDR_H = 7.5;
-const CAT_H     = 7.5;
+const CAT_H = 7.5;
 
 // ─── Colors ───────────────────────────────────────────────────────────────────
 
-const C_HDR_BG  : [number, number, number] = [55, 65, 81];    // dark gray header bg
-const C_HDR_TXT : [number, number, number] = [255, 255, 255];
-const C_CAT_BG  : [number, number, number] = [243, 244, 246]; // light gray category row
-const C_CAT_TXT : [number, number, number] = [30, 30, 30];
-const C_STRIPE  : [number, number, number] = [249, 250, 251]; // alternating row
-const C_ALERT   : [number, number, number] = [255, 241, 241]; // alert row bg
-const C_BORDER  : [number, number, number] = [209, 213, 219]; // row separators
-const C_CONF    : [number, number, number] = [5, 150, 105];   // emerald
-const C_NAO     : [number, number, number] = [220, 38, 38];   // red
-const C_NA      : [number, number, number] = [107, 114, 128]; // gray
-const C_TOTAL   : [number, number, number] = [75, 85, 99];
-const C_QLABEL  : [number, number, number] = [107, 114, 128];
-const C_QTEXT   : [number, number, number] = [30, 30, 30];
+const C_HDR_BG: [number, number, number] = [55, 65, 81];    // dark gray header bg
+const C_HDR_TXT: [number, number, number] = [255, 255, 255];
+const C_CAT_BG: [number, number, number] = [243, 244, 246]; // light gray category row
+const C_CAT_TXT: [number, number, number] = [30, 30, 30];
+const C_STRIPE: [number, number, number] = [249, 250, 251]; // alternating row
+const C_ALERT: [number, number, number] = [255, 241, 241]; // alert row bg
+const C_BORDER: [number, number, number] = [209, 213, 219]; // row separators
+const C_CONF: [number, number, number] = [5, 150, 105];   // emerald
+const C_NAO: [number, number, number] = [220, 38, 38];   // red
+const C_NA: [number, number, number] = [107, 114, 128]; // gray
+const C_TOTAL: [number, number, number] = [75, 85, 99];
+const C_QLABEL: [number, number, number] = [107, 114, 128];
+const C_QTEXT: [number, number, number] = [30, 30, 30];
 
 // ─── Main function ────────────────────────────────────────────────────────────
 
@@ -116,10 +116,10 @@ export function exportTableToPdf (
     const by = midBaseline(y, TABLE_HDR_H, FS_HEAD);
     pdf.text("#", X_LABEL + W_LABEL / 2, by, { align: "center" });
     pdf.text("Pergunta", X_TEXT + 1, by);
-    pdf.text("Conforme",     X_CONF  + W_CONF  / 2, by, { align: "center" });
-    pdf.text("Não Conforme", X_NAO   + W_NAO   / 2, by, { align: "center" });
-    pdf.text("N/A",          X_NA    + W_NA    / 2, by, { align: "center" });
-    pdf.text("Total",        X_TOTAL + W_TOTAL / 2, by, { align: "center" });
+    pdf.text("Conforme", X_CONF + W_CONF / 2, by, { align: "center" });
+    pdf.text("Não Conforme", X_NAO + W_NAO / 2, by, { align: "center" });
+    pdf.text("N/A", X_NA + W_NA / 2, by, { align: "center" });
+    pdf.text("Total", X_TOTAL + W_TOTAL / 2, by, { align: "center" });
 
     pdf.setTextColor(0, 0, 0);
     y += TABLE_HDR_H;
@@ -169,7 +169,7 @@ export function exportTableToPdf (
     const activeFilters: { label: string; value: string }[] = [];
     if (filters.startDate || filters.endDate) {
       const from = filters.startDate ?? "—";
-      const to   = filters.endDate   ?? "—";
+      const to = filters.endDate ?? "—";
       activeFilters.push({ label: "Período:", value: `${from} a ${to}` });
     }
     if (filters.sector && filters.sector !== "__all__") {

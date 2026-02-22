@@ -26,6 +26,8 @@ interface AppDataContextValue {
   clinicalLoading: boolean;
   clinicalError: string | null;
   loadClinical: (file: File) => Promise<void>;
+
+  clearAllData: () => void;
 }
 
 const AppDataContext = createContext<AppDataContextValue>({
@@ -37,6 +39,7 @@ const AppDataContext = createContext<AppDataContextValue>({
   clinicalLoading: false,
   clinicalError: null,
   loadClinical: async () => { },
+  clearAllData: () => { },
 });
 
 export function useAppData () {
@@ -171,11 +174,21 @@ export function AppDataProvider ({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const clearAllData = useCallback(() => {
+    setRops(null);
+    setClinical(null);
+    setRopsError(null);
+    setClinicalError(null);
+    localStorage.removeItem(KEY_ROPS);
+    localStorage.removeItem(KEY_CLINICAL);
+  }, []);
+
   return (
     <AppDataContext.Provider
       value={{
         rops, ropsLoading, ropsError, loadRops,
         clinical, clinicalLoading, clinicalError, loadClinical,
+        clearAllData,
       }}
     >
       {children}

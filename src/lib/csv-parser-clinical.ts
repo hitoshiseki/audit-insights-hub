@@ -48,11 +48,11 @@ function parseBrDate (dateStr: string): Date {
   try {
     const d = parseDate(dateStr, "dd/MM/yyyy HH:mm:ss", new Date());
     if (!isNaN(d.getTime())) return d;
-  } catch { }
+  } catch { /* empty */ }
   try {
     const d = parseDate(dateStr, "dd/MM/yyyy", new Date());
     if (!isNaN(d.getTime())) return d;
-  } catch { }
+  } catch { /* empty */ }
   return new Date();
 }
 

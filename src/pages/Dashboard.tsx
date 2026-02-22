@@ -15,10 +15,11 @@ import { exportTableToPdf, REPORT_EMITTER } from "@/lib/pdf-export";
 import { BarChart3, FileDown } from "lucide-react";
 import { NavMenuButton } from "@/components/AppNav";
 import { Button } from "@/components/ui/button";
+import { HeaderActionsMenu } from "@/components/HeaderActionsMenu";
 import { toast } from "sonner";
 
 export default function Dashboard () {
-  const { rops, ropsLoading, ropsError, loadRops } = useAppData();
+  const { rops, ropsLoading, ropsError, loadRops, clearAllData } = useAppData();
   const rows = rops?.rows ?? [];
   const questions = rops?.questions ?? [];
   const isLoaded = rops !== null;
@@ -91,7 +92,7 @@ export default function Dashboard () {
         sector: selectedSector,
         category: selectedCategory !== "__all__" ? selectedCategory : undefined,
         totalFiltered: filteredRows.length,
-      });
+      }, `auditoria-rops-${format(new Date(), "dd-MM-yyyy")}.pdf`);
       toast.success("PDF exportado com sucesso!");
     } catch {
       toast.error("Erro ao exportar PDF.");
@@ -153,6 +154,8 @@ export default function Dashboard () {
             <FileDown className="mr-1 h-4 w-4" />
             {exporting ? "Exportando…" : "Exportar PDF"}
           </Button>
+
+          <HeaderActionsMenu onClearData={clearAllData} />
         </div>
       </header>
 
@@ -201,7 +204,7 @@ export default function Dashboard () {
         </main>
       </div>
       <footer className="fixed bottom-0 left-0 right-0 z-20 border-t border-border bg-card/90 px-4 py-2 text-center text-xs text-muted-foreground backdrop-blur-sm">
-        Emitido por: {REPORT_EMITTER}
+        Responsável: {REPORT_EMITTER}
       </footer>
     </div>
   );
