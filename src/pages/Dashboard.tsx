@@ -114,17 +114,28 @@ export default function Dashboard() {
   }, []);
 
   const handleExportPdf = useCallback(async () => {
-    if (!mainContentRef.current) return;
+    const contentEl = mainContentRef.current;
+    if (!contentEl) return;
+    const scrollContainer = contentEl.closest("main") || contentEl;
     setExporting(true);
     try {
-      await exportDashboardToPdf(mainContentRef.current);
+      await exportDashboardToPdf(
+        contentEl,
+        scrollContainer as HTMLElement,
+        {
+          startDate: startDate ? format(startDate, "dd/MM/yyyy") : undefined,
+          endDate: endDate ? format(endDate, "dd/MM/yyyy") : undefined,
+          sector: selectedSector,
+          totalFiltered: filteredRows.length,
+        }
+      );
       toast.success("PDF exportado com sucesso!");
     } catch {
       toast.error("Erro ao exportar PDF.");
     } finally {
       setExporting(false);
     }
-  }, []);
+  }, [startDate, endDate, selectedSector, filteredRows.length]);
 
   if (!isLoaded) {
     return (
