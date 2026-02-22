@@ -20,6 +20,9 @@ interface GlobalFiltersProps {
   sectors: string[];
   selectedSector: string;
   onSectorChange: (sector: string) => void;
+  categories?: string[];
+  selectedCategory?: string;
+  onCategoryChange?: (category: string) => void;
   /** Extra filter controls rendered after the sector selector */
   children?: React.ReactNode;
 }
@@ -35,13 +38,18 @@ export function GlobalFilters ({
   sectors,
   selectedSector,
   onSectorChange,
+  categories,
+  selectedCategory,
+  onCategoryChange,
   children,
 }: GlobalFiltersProps) {
   const [startOpen, setStartOpen] = useState(false);
   const [endOpen, setEndOpen] = useState(false);
 
   const hasFilters =
-    startDate || endDate || (selectedSector && selectedSector !== "__all__");
+    startDate || endDate ||
+    (selectedSector && selectedSector !== "__all__") ||
+    (selectedCategory && selectedCategory !== "__all__");
 
   return (
     <div className="border-b border-border bg-card/60 px-4 py-3 lg:px-6">
@@ -124,6 +132,23 @@ export function GlobalFilters ({
             ))}
           </SelectContent>
         </Select>
+
+        {/* Categoria */}
+        {categories && categories.length > 0 && onCategoryChange && (
+          <Select value={selectedCategory ?? "__all__"} onValueChange={onCategoryChange}>
+            <SelectTrigger className="w-[220px]">
+              <SelectValue placeholder="Todas as categorias" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Todas as categorias</SelectItem>
+              {categories.map((c) => (
+                <SelectItem key={c} value={c}>
+                  {c}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
 
         {/* Limpar */}
         {children}

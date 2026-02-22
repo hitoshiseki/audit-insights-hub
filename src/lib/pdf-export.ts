@@ -1,9 +1,13 @@
 import { jsPDF } from "jspdf";
 
+export const REPORT_EMITTER = "Jéssica Pinho da Silva Oliveira — Gerente de Qualidade";
+
 export interface PdfFilterInfo {
   startDate?: string;
   endDate?: string;
   sector?: string;
+  category?: string;
+  prontuario?: string;
   totalFiltered: number;
 }
 
@@ -130,28 +134,115 @@ export function exportTableToPdf (
     }
   }
 
-  // ── Page 1: dashboard title + filter metadata ─────────────────────────────
+  // ── Page 1: title + filter section ───────────────────────────────────────
   if (filters) {
+    // Generation timestamp
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const geradoEm = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()} às ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
+    // Title row
     pdf.setFontSize(FS_TITLE);
     pdf.setFont("helvetica", "bold");
     pdf.setTextColor(0, 0, 0);
-    pdf.text("Dashboard de Auditoria", MARGIN, y + FS_TITLE * PT_TO_MM);
-    y += FS_TITLE * PT_TO_MM + 3;
+    const titleBaseline = y + FS_TITLE * PT_TO_MM;
+    pdf.text("Dashboard de Auditoria", MARGIN, titleBaseline);
 
     pdf.setFontSize(FS_META);
     pdf.setFont("helvetica", "normal");
     pdf.setTextColor(...C_NA);
-    const parts: string[] = [];
-    if (filters.startDate) parts.push(`De: ${filters.startDate}`);
-    if (filters.endDate)   parts.push(`Até: ${filters.endDate}`);
-    if (filters.sector && filters.sector !== "__all__") parts.push(`Setor: ${filters.sector}`);
-    parts.push(`Total: ${filters.totalFiltered} resposta${filters.totalFiltered !== 1 ? "s" : ""}`);
-    pdf.text(parts.join("   |   "), MARGIN, y + FS_META * PT_TO_MM);
-    y += FS_META * PT_TO_MM + 4;
+    pdf.text(`Gerado em: ${geradoEm}`, PAGE_W - MARGIN, titleBaseline, { align: "right" });
 
+    y += FS_TITLE * PT_TO_MM + 2;
+
+    // Separator
     pdf.setDrawColor(...C_BORDER);
     pdf.setLineWidth(0.3);
-    pdf.line(MARGIN, y, MARGIN + USABLE_W, y);
+    pdf.line(MARGIN, y, PAGE_W - MARGIN, y);
+    y += 3;
+
+    // ── Filter box ──────────────────────────────────────────────────────────
+    const filterLineH = FS_META * PT_TO_MM * 1.5; // ~4.2 mm per line
+    const boxPadY = 2.5; // top/bottom padding inside box
+
+    // Collect active filter lines
+    const activeFilters: { label: string; value: string }[] = [];
+    if (filters.startDate || filters.endDate) {
+      const from = filters.startDate ?? "—";
+      const to   = filters.endDate   ?? "—";
+      activeFilters.push({ label: "Período:", value: `${from} a ${to}` });
+    }
+    if (filters.sector && filters.sector !== "__all__") {
+      activeFilters.push({ label: "Setor:", value: filters.sector });
+    }
+    if (filters.category && filters.category !== "__all__") {
+      activeFilters.push({ label: "Categoria:", value: filters.category });
+    }
+    if (filters.prontuario && filters.prontuario !== "__all__") {
+      activeFilters.push({ label: "Prontuário:", value: filters.prontuario });
+    }
+
+    const contentLines = activeFilters.length > 0
+      ? activeFilters.length
+      : 1; // "Sem filtros aplicados" line
+    const boxH = boxPadY + filterLineH * (1 + contentLines) + boxPadY; // +1 for "FILTROS" header
+
+    // Box background
+    pdf.setFillColor(248, 249, 250);
+    pdf.setDrawColor(...C_BORDER);
+    pdf.setLineWidth(0.25);
+    pdf.rect(MARGIN, y, USABLE_W, boxH, "FD");
+
+    const boxTextX = MARGIN + 3;
+    let by = y + boxPadY + filterLineH * 0.85;
+
+    // "FILTROS APLICADOS" label
+    pdf.setFontSize(FS_META - 0.5);
+    pdf.setFont("helvetica", "bold");
+    pdf.setTextColor(...C_HDR_BG);
+    pdf.text("FILTROS APLICADOS", boxTextX, by);
+    by += filterLineH;
+
+    pdf.setFontSize(FS_META);
+    if (activeFilters.length === 0) {
+      pdf.setFont("helvetica", "italic");
+      pdf.setTextColor(...C_NA);
+      pdf.text("Sem filtros de período, setor ou prontuário — exibindo todos os registros.", boxTextX, by);
+    } else {
+      for (const f of activeFilters) {
+        // Bold label
+        pdf.setFont("helvetica", "bold");
+        pdf.setTextColor(...C_QTEXT);
+        pdf.text(f.label, boxTextX, by);
+
+        // Normal value, offset by label width
+        const labelW = pdf.getTextWidth(f.label);
+        pdf.setFont("helvetica", "normal");
+        pdf.setTextColor(...C_NA);
+        pdf.text(f.value, boxTextX + labelW + 1.5, by);
+
+        by += filterLineH;
+      }
+    }
+
+    y += boxH + 2;
+
+    // Total row (outside box, right-aligned)
+    pdf.setFontSize(FS_META);
+    pdf.setFont("helvetica", "normal");
+    pdf.setTextColor(...C_NA);
+    pdf.text(
+      `Total de registros analisados: ${filters.totalFiltered}`,
+      PAGE_W - MARGIN,
+      y + FS_META * PT_TO_MM,
+      { align: "right" }
+    );
+    y += FS_META * PT_TO_MM + 4;
+
+    // Separator before table
+    pdf.setDrawColor(...C_BORDER);
+    pdf.setLineWidth(0.3);
+    pdf.line(MARGIN, y, PAGE_W - MARGIN, y);
     y += 3;
   }
 
@@ -254,7 +345,7 @@ export function exportTableToPdf (
     y += 2; // breathing room between groups
   }
 
-  // ── Page numbers ──────────────────────────────────────────────────────────
+  // ── Page numbers + emitter ────────────────────────────────────────────────
   const totalPages = (pdf as unknown as { internal: { getNumberOfPages: () => number } })
     .internal.getNumberOfPages();
   for (let p = 1; p <= totalPages; p++) {
@@ -262,6 +353,20 @@ export function exportTableToPdf (
     pdf.setFontSize(7);
     pdf.setFont("helvetica", "normal");
     pdf.setTextColor(...C_NA);
+
+    // Footer separator line
+    pdf.setDrawColor(...C_BORDER);
+    pdf.setLineWidth(0.2);
+    pdf.line(MARGIN, PAGE_H - MARGIN + 1, PAGE_W - MARGIN, PAGE_H - MARGIN + 1);
+
+    // Emitter — left
+    pdf.text(
+      `Emitido por: ${REPORT_EMITTER}`,
+      MARGIN,
+      PAGE_H - MARGIN / 2
+    );
+
+    // Page number — right
     pdf.text(
       `Página ${p} de ${totalPages}`,
       PAGE_W - MARGIN,

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback } from "react";
+import { createContext, useContext, useState, useCallback, useEffect } from "react";
 import type { AuditRow, ParsedQuestion } from "@/types/audit";
 import type { ClinicalAuditRow, ClinicalParsedQuestion } from "@/types/clinical-audit";
 import { parseCSV } from "@/lib/csv-parser";
@@ -43,6 +43,68 @@ export function useAppData () {
   return useContext(AppDataContext);
 }
 
+// ── localStorage keys ──────────────────────────────────────────────────────────
+const KEY_ROPS     = "audit-insights-rops";
+const KEY_CLINICAL = "audit-insights-clinical";
+
+// ── Serialization helpers ──────────────────────────────────────────────────────
+
+function serializeRops (state: RopsState): string {
+  return JSON.stringify({
+    ...state,
+    rows: state.rows.map((r) => ({
+      ...r,
+      timestamp: r.timestamp.toISOString(),
+      auditDate: r.auditDate.toISOString(),
+    })),
+  });
+}
+
+function deserializeRops (json: string): RopsState {
+  const parsed = JSON.parse(json) as {
+    rows: (Omit<AuditRow, "timestamp" | "auditDate"> & { timestamp: string; auditDate: string })[];
+    questions: ParsedQuestion[];
+    fileName: string;
+  };
+  return {
+    ...parsed,
+    rows: parsed.rows.map((r) => ({
+      ...r,
+      timestamp: new Date(r.timestamp),
+      auditDate: new Date(r.auditDate),
+    })),
+  };
+}
+
+function serializeClinical (state: ClinicalState): string {
+  return JSON.stringify({
+    ...state,
+    rows: state.rows.map((r) => ({
+      ...r,
+      timestamp: r.timestamp.toISOString(),
+      auditDate: r.auditDate.toISOString(),
+    })),
+  });
+}
+
+function deserializeClinical (json: string): ClinicalState {
+  const parsed = JSON.parse(json) as {
+    rows: (Omit<ClinicalAuditRow, "timestamp" | "auditDate"> & { timestamp: string; auditDate: string })[];
+    questions: ClinicalParsedQuestion[];
+    fileName: string;
+  };
+  return {
+    ...parsed,
+    rows: parsed.rows.map((r) => ({
+      ...r,
+      timestamp: new Date(r.timestamp),
+      auditDate: new Date(r.auditDate),
+    })),
+  };
+}
+
+// ── Provider ───────────────────────────────────────────────────────────────────
+
 export function AppDataProvider ({ children }: { children: React.ReactNode }) {
   const [rops, setRops] = useState<RopsState | null>(null);
   const [ropsLoading, setRopsLoading] = useState(false);
@@ -52,14 +114,38 @@ export function AppDataProvider ({ children }: { children: React.ReactNode }) {
   const [clinicalLoading, setClinicalLoading] = useState(false);
   const [clinicalError, setClinicalError] = useState<string | null>(null);
 
+  // Hydrate from localStorage on mount
+  useEffect(() => {
+    try {
+      const ropsJson = localStorage.getItem(KEY_ROPS);
+      if (ropsJson) setRops(deserializeRops(ropsJson));
+    } catch {
+      localStorage.removeItem(KEY_ROPS);
+    }
+
+    try {
+      const clinicalJson = localStorage.getItem(KEY_CLINICAL);
+      if (clinicalJson) setClinical(deserializeClinical(clinicalJson));
+    } catch {
+      localStorage.removeItem(KEY_CLINICAL);
+    }
+  }, []);
+
   const loadRops = useCallback(async (file: File) => {
     setRopsLoading(true);
     setRopsError(null);
     try {
       const result = await parseCSV(file);
-      setRops({ rows: result.rows, questions: result.questions, fileName: file.name });
-    } catch {
-      setRopsError("Erro ao processar o arquivo CSV. Verifique o formato.");
+      const state: RopsState = { rows: result.rows, questions: result.questions, fileName: file.name };
+      setRops(state);
+      try {
+        localStorage.setItem(KEY_ROPS, serializeRops(state));
+      } catch {
+        // Storage quota exceeded — silently ignore
+      }
+    } catch (e) {
+      setRops(null);
+      setRopsError(e instanceof Error ? e.message : "Erro ao processar o arquivo CSV. Verifique o formato.");
     } finally {
       setRopsLoading(false);
     }
@@ -70,9 +156,16 @@ export function AppDataProvider ({ children }: { children: React.ReactNode }) {
     setClinicalError(null);
     try {
       const result = await parseClinicalCSV(file);
-      setClinical({ rows: result.rows, questions: result.questions, fileName: file.name });
-    } catch {
-      setClinicalError("Erro ao processar o arquivo CSV. Verifique o formato.");
+      const state: ClinicalState = { rows: result.rows, questions: result.questions, fileName: file.name };
+      setClinical(state);
+      try {
+        localStorage.setItem(KEY_CLINICAL, serializeClinical(state));
+      } catch {
+        // Storage quota exceeded — silently ignore
+      }
+    } catch (e) {
+      setClinical(null);
+      setClinicalError(e instanceof Error ? e.message : "Erro ao processar o arquivo CSV. Verifique o formato.");
     } finally {
       setClinicalLoading(false);
     }

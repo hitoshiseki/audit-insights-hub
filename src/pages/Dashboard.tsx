@@ -11,7 +11,7 @@ import { useAppData } from "@/contexts/AppDataContext";
 import { useDashboardFilters } from "@/hooks/use-dashboard-filters";
 import { filterByDateRange } from "@/lib/date-helpers";
 import { groupByCategory, computeGlobalMetrics } from "@/lib/aggregators";
-import { exportTableToPdf } from "@/lib/pdf-export";
+import { exportTableToPdf, REPORT_EMITTER } from "@/lib/pdf-export";
 import { BarChart3, FileDown } from "lucide-react";
 import { NavMenuButton } from "@/components/AppNav";
 import { Button } from "@/components/ui/button";
@@ -25,8 +25,8 @@ export default function Dashboard () {
   const fileName = rops?.fileName ?? "";
 
   const {
-    startDate, endDate, selectedSector,
-    setStartDate, setEndDate, setSector, clearFilters,
+    startDate, endDate, selectedSector, selectedCategory,
+    setStartDate, setEndDate, setSector, setCategory, clearFilters,
   } = useDashboardFilters();
 
   const [exporting, setExporting] = useState(false);
@@ -52,15 +52,27 @@ export default function Dashboard () {
     [questions, deferredRows]
   );
 
+  const categories = useMemo(
+    () => categoryGroups.map((g) => g.category),
+    [categoryGroups]
+  );
+
+  const displayedGroups = useMemo(
+    () => selectedCategory === "__all__"
+      ? categoryGroups
+      : categoryGroups.filter((g) => g.category === selectedCategory),
+    [categoryGroups, selectedCategory]
+  );
+
   const globalMetrics = useMemo(
-    () => computeGlobalMetrics(categoryGroups, deferredRows.length),
-    [categoryGroups, deferredRows.length]
+    () => computeGlobalMetrics(displayedGroups, deferredRows.length),
+    [displayedGroups, deferredRows.length]
   );
 
   const handleExportPdf = useCallback(() => {
     setExporting(true);
     try {
-      const pdfGroups = categoryGroups.map((g) => ({
+      const pdfGroups = displayedGroups.map((g) => ({
         category: g.category,
         avgConforme: g.avgConforme,
         questions: g.questions.map((q) => ({
@@ -77,6 +89,7 @@ export default function Dashboard () {
         startDate: startDate ? format(startDate, "dd/MM/yyyy") : undefined,
         endDate: endDate ? format(endDate, "dd/MM/yyyy") : undefined,
         sector: selectedSector,
+        category: selectedCategory !== "__all__" ? selectedCategory : undefined,
         totalFiltered: filteredRows.length,
       });
       toast.success("PDF exportado com sucesso!");
@@ -85,7 +98,7 @@ export default function Dashboard () {
     } finally {
       setExporting(false);
     }
-  }, [categoryGroups, startDate, endDate, selectedSector, filteredRows.length]);
+  }, [displayedGroups, startDate, endDate, selectedSector, selectedCategory, filteredRows.length]);
 
   if (!isLoaded) {
     return (
@@ -135,7 +148,7 @@ export default function Dashboard () {
             size="sm"
             onClick={handleExportPdf}
             disabled={exporting}
-            className="ml-auto"
+            className="ml-auto bg-green-600 text-white hover:bg-green-800 hover:text-white"
           >
             <FileDown className="mr-1 h-4 w-4" />
             {exporting ? "Exportando…" : "Exportar PDF"}
@@ -149,15 +162,18 @@ export default function Dashboard () {
         endDate={endDate}
         onStartDateChange={setStartDate}
         onEndDateChange={setEndDate}
-        onClear={clearFilters}
+        onClear={() => clearFilters()}
         totalFiltered={filteredRows.length}
         sectors={sectors}
         selectedSector={selectedSector}
         onSectorChange={setSector}
+        categories={categories}
+        selectedCategory={selectedCategory}
+        onCategoryChange={setCategory}
       />
 
       <div className="flex flex-1 overflow-hidden">
-        <main className="flex-1 overflow-y-auto p-4 lg:p-6">
+        <main className="flex-1 overflow-y-auto p-4 pb-10 lg:p-6 lg:pb-10">
           <div className="space-y-6">
             <MetricsOverview metrics={globalMetrics} />
 
@@ -168,7 +184,7 @@ export default function Dashboard () {
               </TabsList>
 
               <TabsContent value="charts" className="mt-4 space-y-6">
-                {categoryGroups.map((group) => (
+                {displayedGroups.map((group) => (
                   <CategorySection
                     key={group.category}
                     group={group}
@@ -178,12 +194,15 @@ export default function Dashboard () {
               </TabsContent>
 
               <TabsContent value="table" className="mt-4">
-                <QuestionsTable groups={categoryGroups} />
+                <QuestionsTable groups={displayedGroups} />
               </TabsContent>
             </Tabs>
           </div>
         </main>
       </div>
+      <footer className="fixed bottom-0 left-0 right-0 z-20 border-t border-border bg-card/90 px-4 py-2 text-center text-xs text-muted-foreground backdrop-blur-sm">
+        Emitido por: {REPORT_EMITTER}
+      </footer>
     </div>
   );
 }

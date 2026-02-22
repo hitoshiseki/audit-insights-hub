@@ -96,6 +96,15 @@ export function parseClinicalCSV (
           };
         });
 
+        if (rows.length === 0) {
+          reject(new Error("A planilha não contém dados. Verifique o arquivo e tente novamente."));
+          return;
+        }
+        if (questions.length === 0) {
+          reject(new Error("Nenhuma coluna de pergunta foi encontrada. Verifique o formato do arquivo."));
+          return;
+        }
+
         resolve({ rows, questions });
       },
       error (err) {

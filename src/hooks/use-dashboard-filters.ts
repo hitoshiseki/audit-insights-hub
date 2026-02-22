@@ -14,9 +14,9 @@ function parseDateParam (val: string | null): Date | undefined {
 
 /**
  * Manages the common URL-based filter state shared by all dashboards:
- * startDate, endDate, and sector.
+ * startDate, endDate, sector, and category.
  *
- * For module-specific extra params (e.g. prontuario) use the returned
+ * For module-specific extra params use the returned
  * `setParam` / `searchParams` directly.
  */
 export function useDashboardFilters () {
@@ -25,6 +25,7 @@ export function useDashboardFilters () {
   const startDate = parseDateParam(searchParams.get("startDate"));
   const endDate = parseDateParam(searchParams.get("endDate"));
   const selectedSector = searchParams.get("sector") || "__all__";
+  const selectedCategory = searchParams.get("category") || "__all__";
 
   const setStartDate = useCallback(
     (d: Date | undefined) => {
@@ -59,16 +60,11 @@ export function useDashboardFilters () {
     [setSearchParams]
   );
 
-  /**
-   * Clears the base date+sector filters plus any extra param keys passed in.
-   */
-  const clearFilters = useCallback(
-    (extraKeys: string[] = []) => {
+  const setCategory = useCallback(
+    (category: string) => {
       setSearchParams((prev) => {
-        prev.delete("startDate");
-        prev.delete("endDate");
-        prev.delete("sector");
-        extraKeys.forEach((k) => prev.delete(k));
+        if (category && category !== "__all__") prev.set("category", category);
+        else prev.delete("category");
         return prev;
       });
     },
@@ -76,8 +72,25 @@ export function useDashboardFilters () {
   );
 
   /**
-   * Generic setter for module-specific params not covered above
-   * (e.g. "prontuario").
+   * Clears all base filters (date, sector, category) plus any extra param keys.
+   */
+  const clearFilters = useCallback(
+    (extraKeys: string[] = []) => {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("startDate");
+        next.delete("endDate");
+        next.delete("sector");
+        next.delete("category");
+        extraKeys.forEach((k) => next.delete(k));
+        return next;
+      });
+    },
+    [setSearchParams]
+  );
+
+  /**
+   * Generic setter for module-specific params not covered above.
    */
   const setParam = useCallback(
     (key: string, value: string) => {
@@ -95,9 +108,11 @@ export function useDashboardFilters () {
     startDate,
     endDate,
     selectedSector,
+    selectedCategory,
     setStartDate,
     setEndDate,
     setSector,
+    setCategory,
     clearFilters,
     setParam,
   };
