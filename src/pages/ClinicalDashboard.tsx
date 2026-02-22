@@ -6,28 +6,40 @@ import { MetricsOverview } from "@/components/MetricsOverview";
 import { CategorySection } from "@/components/CategorySection";
 import { QuestionChart } from "@/components/QuestionChart";
 import { QuestionsTable } from "@/components/QuestionsTable";
+import { AuditTypeChart } from "@/components/AuditTypeChart";
+import { NavMenuButton } from "@/components/AppNav";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAppData } from "@/contexts/AppDataContext";
 import { useDashboardFilters } from "@/hooks/use-dashboard-filters";
 import { filterByDateRange } from "@/lib/date-helpers";
-import { groupByCategory, computeGlobalMetrics } from "@/lib/aggregators";
+import {
+  groupClinicalByCategory,
+  computeClinicalGlobalMetrics,
+  computeAuditTypeStats,
+} from "@/lib/aggregators-clinical";
 import { exportTableToPdf } from "@/lib/pdf-export";
-import { BarChart3, FileDown } from "lucide-react";
-import { NavMenuButton } from "@/components/AppNav";
+import { Stethoscope, FileDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 
-export default function Dashboard () {
-  const { rops, ropsLoading, ropsError, loadRops } = useAppData();
-  const rows = rops?.rows ?? [];
-  const questions = rops?.questions ?? [];
-  const isLoaded = rops !== null;
-  const fileName = rops?.fileName ?? "";
+export default function ClinicalDashboard () {
+  const { clinical, clinicalLoading, clinicalError, loadClinical } = useAppData();
+  const rows = clinical?.rows ?? [];
+  const questions = clinical?.questions ?? [];
+  const isLoaded = clinical !== null;
+  const fileName = clinical?.fileName ?? "";
 
   const {
     startDate, endDate, selectedSector,
-    setStartDate, setEndDate, setSector, clearFilters,
+    setStartDate, setEndDate, setSector, clearFilters, setParam, searchParams,
   } = useDashboardFilters();
+
+  const selectedProntuario = searchParams.get("prontuario") || "__all__";
+  const setProntuario = useCallback(
+    (p: string) => setParam("prontuario", p),
+    [setParam]
+  );
 
   const [exporting, setExporting] = useState(false);
 
@@ -36,25 +48,38 @@ export default function Dashboard () {
     return Array.from(set).sort();
   }, [rows]);
 
+  const prontuarios = useMemo(() => {
+    const set = new Set(rows.map((r) => r.prontuario).filter(Boolean));
+    return Array.from(set).sort();
+  }, [rows]);
+
   const filteredRows = useMemo(() => {
     let result = filterByDateRange(rows, startDate, endDate);
     if (selectedSector && selectedSector !== "__all__") {
       result = result.filter((r) => r.sector === selectedSector);
     }
+    if (selectedProntuario && selectedProntuario !== "__all__") {
+      result = result.filter((r) => r.prontuario === selectedProntuario);
+    }
     return result;
-  }, [rows, startDate, endDate, selectedSector]);
+  }, [rows, startDate, endDate, selectedSector, selectedProntuario]);
 
   // Deferred version: chart computations trail behind so filter UI stays snappy
   const deferredRows = useDeferredValue(filteredRows);
 
   const categoryGroups = useMemo(
-    () => groupByCategory(questions, deferredRows),
+    () => groupClinicalByCategory(questions, deferredRows),
     [questions, deferredRows]
   );
 
   const globalMetrics = useMemo(
-    () => computeGlobalMetrics(categoryGroups, deferredRows.length),
+    () => computeClinicalGlobalMetrics(categoryGroups, deferredRows.length),
     [categoryGroups, deferredRows.length]
+  );
+
+  const auditTypeStats = useMemo(
+    () => computeAuditTypeStats(deferredRows),
+    [deferredRows]
   );
 
   const handleExportPdf = useCallback(() => {
@@ -64,7 +89,7 @@ export default function Dashboard () {
         category: g.category,
         avgConforme: g.avgConforme,
         questions: g.questions.map((q) => ({
-          label: String(q.question.number),
+          label: "numberStr" in q.question ? q.question.numberStr : "",
           text: q.question.text,
           conformePercent: q.conformePercent,
           naoConformePercent: q.naoConformePercent,
@@ -92,19 +117,19 @@ export default function Dashboard () {
       <div className="flex min-h-screen items-center justify-center bg-background p-6">
         <div className="w-full max-w-lg space-y-6 text-center">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
-            <BarChart3 className="h-8 w-8 text-primary" />
+            <Stethoscope className="h-8 w-8 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Auditoria ROPS</h1>
+            <h1 className="text-2xl font-bold text-foreground">Auditoria Clínica</h1>
             <p className="mt-2 text-muted-foreground">
-              Faça upload do seu arquivo CSV de respostas para começar a análise
+              Faça upload do arquivo CSV de Auditoria Clínica para começar a análise
             </p>
           </div>
           <CsvUpload
-            onFileLoaded={loadRops}
-            isLoading={ropsLoading}
+            onFileLoaded={loadClinical}
+            isLoading={clinicalLoading}
             fileName={fileName}
-            error={ropsError}
+            error={clinicalError}
           />
         </div>
       </div>
@@ -119,15 +144,15 @@ export default function Dashboard () {
           <NavMenuButton />
 
           <div className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5 text-primary" />
-            <h1 className="text-lg font-bold text-foreground">Auditoria ROPS</h1>
+            <Stethoscope className="h-5 w-5 text-primary" />
+            <h1 className="text-lg font-bold text-foreground">Auditoria Clínica</h1>
           </div>
 
           <CsvUpload
-            onFileLoaded={loadRops}
-            isLoading={ropsLoading}
+            onFileLoaded={loadClinical}
+            isLoading={clinicalLoading}
             fileName={fileName}
-            error={ropsError}
+            error={clinicalError}
           />
 
           <Button
@@ -143,22 +168,39 @@ export default function Dashboard () {
         </div>
       </header>
 
-      {/* Filters */}
+      {/* Filters — prontuário selector injected via children slot */}
       <GlobalFilters
         startDate={startDate}
         endDate={endDate}
         onStartDateChange={setStartDate}
         onEndDateChange={setEndDate}
-        onClear={clearFilters}
+        onClear={() => clearFilters(["prontuario"])}
         totalFiltered={filteredRows.length}
+        countLabel="prontuário"
         sectors={sectors}
         selectedSector={selectedSector}
         onSectorChange={setSector}
-      />
+      >
+        <Select value={selectedProntuario} onValueChange={setProntuario}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Todos os prontuários" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">Todos os prontuários</SelectItem>
+            {prontuarios.map((p) => (
+              <SelectItem key={p} value={p}>
+                {p}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </GlobalFilters>
 
       <div className="flex flex-1 overflow-hidden">
         <main className="flex-1 overflow-y-auto p-4 lg:p-6">
           <div className="space-y-6">
+            <AuditTypeChart stats={auditTypeStats} />
+
             <MetricsOverview metrics={globalMetrics} />
 
             <Tabs defaultValue="charts">

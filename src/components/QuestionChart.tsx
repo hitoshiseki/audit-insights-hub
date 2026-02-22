@@ -12,10 +12,12 @@ import {
 import { AlertTriangle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { QuestionStats } from "@/types/audit";
+import type { ClinicalQuestionStats } from "@/types/clinical-audit";
 import clsx from "clsx";
 
 interface QuestionChartProps {
-  stats: QuestionStats;
+  /** Accepts both ROPS and Clinical question stats */
+  stats: QuestionStats | ClinicalQuestionStats;
 }
 
 const COLORS: Record<string, string> = {
@@ -30,7 +32,7 @@ interface TooltipPayload {
   payload: { name: string; percent: number; count: number };
 }
 
-function CustomTooltip({ active, payload }: { active?: boolean; payload?: TooltipPayload[] }) {
+function CustomTooltip ({ active, payload }: { active?: boolean; payload?: TooltipPayload[] }) {
   if (!active || !payload?.length) return null;
   const data = payload[0].payload;
   return (
@@ -43,7 +45,12 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: Toolti
   );
 }
 
-export function QuestionChart({ stats }: QuestionChartProps) {
+export function QuestionChart ({ stats }: QuestionChartProps) {
+  const questionLabel =
+    "numberStr" in stats.question
+      ? stats.question.numberStr   // ClinicalParsedQuestion uses "1.1" style
+      : String(stats.question.number); // ParsedQuestion uses integer
+
   const data = [
     { name: "Conforme", percent: stats.conformePercent, count: stats.conforme },
     { name: "Não Conforme", percent: stats.naoConformePercent, count: stats.naoConforme },
@@ -63,7 +70,7 @@ export function QuestionChart({ stats }: QuestionChartProps) {
         <div className="flex items-start gap-2">
           {stats.isAlert && <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />}
           <CardTitle className="text-sm font-medium leading-tight">
-            {stats.question.number}. {stats.question.text}
+            {questionLabel}. {stats.question.text}
           </CardTitle>
         </div>
       </CardHeader>

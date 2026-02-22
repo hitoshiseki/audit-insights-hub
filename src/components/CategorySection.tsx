@@ -4,14 +4,24 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { QuestionChart } from "@/components/QuestionChart";
-import type { CategoryGroup } from "@/types/audit";
+import { LazyMount } from "@/components/LazyMount";
 
-interface CategorySectionProps {
-  group: CategoryGroup;
+interface CategoryGroup<T> {
+  category: string;
+  questions: T[];
+  avgConforme: number;
+  avgNaoConforme: number;
 }
 
-export function CategorySection({ group }: CategorySectionProps) {
+interface CategorySectionProps<T extends { question: { fullHeader: string } }> {
+  group: CategoryGroup<T>;
+  renderChart: (stats: T) => React.ReactNode;
+}
+
+export function CategorySection<T extends { question: { fullHeader: string } }>({
+  group,
+  renderChart,
+}: CategorySectionProps<T>) {
   return (
     <div id={`category-${encodeURIComponent(group.category)}`}>
       <Accordion type="single" collapsible defaultValue="content">
@@ -28,11 +38,15 @@ export function CategorySection({ group }: CategorySectionProps) {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-3 pb-1">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {group.questions.map((stats) => (
-                <QuestionChart key={stats.question.fullHeader} stats={stats} />
-              ))}
-            </div>
+            <LazyMount>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {group.questions.map((stats) => (
+                  <div key={stats.question.fullHeader}>
+                    {renderChart(stats)}
+                  </div>
+                ))}
+              </div>
+            </LazyMount>
           </AccordionContent>
         </AccordionItem>
       </Accordion>

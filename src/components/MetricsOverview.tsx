@@ -6,7 +6,7 @@ interface MetricsOverviewProps {
   metrics: GlobalMetrics;
 }
 
-export function MetricsOverview({ metrics }: MetricsOverviewProps) {
+export function MetricsOverview ({ metrics }: MetricsOverviewProps) {
   const cards = [
     {
       label: "Conforme (média)",
@@ -32,13 +32,14 @@ export function MetricsOverview({ metrics }: MetricsOverviewProps) {
       subtitle: `${metrics.worstCategoryPercent.toFixed(1)}% não conforme`,
       icon: AlertTriangle,
       iconClass: "text-chart-nao-conforme",
+      fullWidth: true,
     },
   ];
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {cards.map((card) => (
-        <Card key={card.label} className="animate-fade-in">
+        <Card key={card.label} className={`animate-fade-in${card.fullWidth ? " col-span-full" : ""}`}>
           <CardContent className="flex items-start gap-4 p-5">
             <div className="rounded-lg bg-accent p-2.5">
               <card.icon className={`h-5 w-5 ${card.iconClass}`} />

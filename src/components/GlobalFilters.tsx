@@ -15,26 +15,33 @@ interface GlobalFiltersProps {
   onEndDateChange: (d: Date | undefined) => void;
   onClear: () => void;
   totalFiltered: number;
+  /** Singular noun shown in the count badge, e.g. "resposta" or "prontuário" */
+  countLabel?: string;
   sectors: string[];
   selectedSector: string;
   onSectorChange: (sector: string) => void;
+  /** Extra filter controls rendered after the sector selector */
+  children?: React.ReactNode;
 }
 
-export function GlobalFilters({
+export function GlobalFilters ({
   startDate,
   endDate,
   onStartDateChange,
   onEndDateChange,
   onClear,
   totalFiltered,
+  countLabel = "resposta",
   sectors,
   selectedSector,
   onSectorChange,
+  children,
 }: GlobalFiltersProps) {
   const [startOpen, setStartOpen] = useState(false);
   const [endOpen, setEndOpen] = useState(false);
 
-  const hasFilters = startDate || endDate || selectedSector;
+  const hasFilters =
+    startDate || endDate || (selectedSector && selectedSector !== "__all__");
 
   return (
     <div className="border-b border-border bg-card/60 px-4 py-3 lg:px-6">
@@ -42,7 +49,7 @@ export function GlobalFilters({
         <Filter className="h-4 w-4 text-muted-foreground" />
         <span className="text-sm font-semibold text-foreground">Filtros</span>
         <div className="ml-auto rounded-lg bg-accent px-3 py-1 text-xs font-medium text-accent-foreground">
-          {totalFiltered} resposta{totalFiltered !== 1 ? "s" : ""}
+          {totalFiltered} {countLabel}{totalFiltered !== 1 ? "s" : ""}
         </div>
       </div>
 
@@ -119,6 +126,7 @@ export function GlobalFilters({
         </Select>
 
         {/* Limpar */}
+        {children}
         {hasFilters && (
           <Button variant="ghost" size="sm" onClick={onClear}>
             <X className="mr-1 h-3 w-3" />

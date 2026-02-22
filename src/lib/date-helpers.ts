@@ -1,11 +1,11 @@
 import { isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import type { AuditRow } from "@/types/audit";
 
-export function filterByDateRange(
-  rows: AuditRow[],
+export function filterByDateRange<T extends { auditDate: Date }> (
+  rows: T[],
   startDate?: Date | null,
   endDate?: Date | null
-): AuditRow[] {
+): T[] {
   if (!startDate && !endDate) return rows;
 
   return rows.filter((row) => {
@@ -22,7 +22,7 @@ export function filterByDateRange(
   });
 }
 
-export function getDateRange(rows: AuditRow[]): { min: Date; max: Date } | null {
+export function getDateRange (rows: AuditRow[]): { min: Date; max: Date } | null {
   if (rows.length === 0) return null;
   const dates = rows.map((r) => r.auditDate.getTime());
   return { min: new Date(Math.min(...dates)), max: new Date(Math.max(...dates)) };
