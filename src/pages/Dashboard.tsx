@@ -9,7 +9,7 @@ import { DashboardSidebar } from "@/components/DashboardSidebar";
 import { useCsvData } from "@/hooks/use-csv-data";
 import { filterByDateRange } from "@/lib/date-helpers";
 import { groupByCategory, computeGlobalMetrics } from "@/lib/aggregators";
-import { Upload, BarChart3 } from "lucide-react";
+import { BarChart3 } from "lucide-react";
 
 function parseDateParam(val: string | null): Date | undefined {
   if (!val) return undefined;
@@ -28,6 +28,7 @@ export default function Dashboard() {
 
   const startDate = parseDateParam(searchParams.get("startDate"));
   const endDate = parseDateParam(searchParams.get("endDate"));
+  const selectedSector = searchParams.get("sector") || "__all__";
 
   const setStartDate = useCallback(
     (d: Date | undefined) => {
@@ -51,18 +52,40 @@ export default function Dashboard() {
     [setSearchParams]
   );
 
+  const setSector = useCallback(
+    (sector: string) => {
+      setSearchParams((prev) => {
+        if (sector && sector !== "__all__") prev.set("sector", sector);
+        else prev.delete("sector");
+        return prev;
+      });
+    },
+    [setSearchParams]
+  );
+
   const clearFilters = useCallback(() => {
     setSearchParams((prev) => {
       prev.delete("startDate");
       prev.delete("endDate");
+      prev.delete("sector");
       return prev;
     });
   }, [setSearchParams]);
 
-  const filteredRows = useMemo(
-    () => filterByDateRange(rows, startDate, endDate),
-    [rows, startDate, endDate]
-  );
+  // Unique sectors from data
+  const sectors = useMemo(() => {
+    const set = new Set(rows.map((r) => r.sector).filter(Boolean));
+    return Array.from(set).sort();
+  }, [rows]);
+
+  // Filter by date range then by sector
+  const filteredRows = useMemo(() => {
+    let result = filterByDateRange(rows, startDate, endDate);
+    if (selectedSector && selectedSector !== "__all__") {
+      result = result.filter((r) => r.sector === selectedSector);
+    }
+    return result;
+  }, [rows, startDate, endDate, selectedSector]);
 
   const categoryGroups = useMemo(
     () => groupByCategory(questions, filteredRows),
@@ -125,19 +148,21 @@ export default function Dashboard() {
             fileName={fileName}
             error={error}
           />
-
-          <div className="ml-auto flex-1 lg:flex-none">
-            <GlobalFilters
-              startDate={startDate}
-              endDate={endDate}
-              onStartDateChange={setStartDate}
-              onEndDateChange={setEndDate}
-              onClear={clearFilters}
-              totalFiltered={filteredRows.length}
-            />
-          </div>
         </div>
       </header>
+
+      {/* Filters section */}
+      <GlobalFilters
+        startDate={startDate}
+        endDate={endDate}
+        onStartDateChange={setStartDate}
+        onEndDateChange={setEndDate}
+        onClear={clearFilters}
+        totalFiltered={filteredRows.length}
+        sectors={sectors}
+        selectedSector={selectedSector}
+        onSectorChange={setSector}
+      />
 
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
