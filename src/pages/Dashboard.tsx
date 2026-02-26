@@ -81,7 +81,6 @@ export default function Dashboard () {
           text: q.question.text,
           conformePercent: q.conformePercent,
           naoConformePercent: q.naoConformePercent,
-          naoSeAplicaPercent: q.naoSeAplicaPercent,
           total: q.total,
           isAlert: q.isAlert,
         })),

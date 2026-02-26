@@ -14,6 +14,12 @@ const META_COLUMNS = [
   "Liderança presente",
 ];
 
+// Find column by normalized name (case-insensitive, trimmed)
+function findColumnByName (headers: string[], targetName: string): string | undefined {
+  const normalized = targetName.trim().toLowerCase();
+  return headers.find(h => h.trim().toLowerCase() === normalized);
+}
+
 export function parseQuestionHeader (header: string): ParsedQuestion | null {
   const match = header.match(QUESTION_PATTERN);
   if (!match) return null;
@@ -40,12 +46,12 @@ function parseBrDate (dateStr: string): Date {
   try {
     const d = parseDate(dateStr, "dd/MM/yyyy HH:mm:ss", new Date());
     if (!isNaN(d.getTime())) return d;
-  } catch { }
+  } catch { /* empty */ }
   // Try "dd/MM/yyyy"
   try {
     const d = parseDate(dateStr, "dd/MM/yyyy", new Date());
     if (!isNaN(d.getTime())) return d;
-  } catch { }
+  } catch { /* empty */ }
   return new Date();
 }
 
@@ -68,17 +74,24 @@ export function parseCSV (file: File): Promise<{ rows: AuditRow[]; questions: Pa
             return catCmp !== 0 ? catCmp : a.number - b.number;
           });
 
+        // Find columns with flexible name matching
+        const timestampCol = findColumnByName(headers, "Carimbo de data/hora");
+        const auditorCol = findColumnByName(headers, "AUDITOR");
+        const auditDateCol = findColumnByName(headers, "Data da Auditoria");
+        const sectorCol = findColumnByName(headers, "Setor Auditado");
+        const leadershipCol = findColumnByName(headers, "Liderança presente");
+
         const rows: AuditRow[] = (results.data as Record<string, string>[]).map((row) => {
           const responses: Record<string, ResponseValue | null> = {};
           for (const qh of questionHeaders) {
             responses[qh] = normalizeResponse(row[qh]);
           }
           return {
-            timestamp: parseBrDate(row["Carimbo de data/hora"] || ""),
-            auditor: row["AUDITOR"] || "",
-            auditDate: parseBrDate(row["Data da Auditoria"] || ""),
-            sector: row["Setor Auditado"] || "",
-            leadershipPresent: row["Liderança presente"] || "",
+            timestamp: parseBrDate(row[timestampCol || "Carimbo de data/hora"] || ""),
+            auditor: row[auditorCol || "AUDITOR"] || "",
+            auditDate: parseBrDate(row[auditDateCol || "Data da Auditoria"] || ""),
+            sector: row[sectorCol || "Setor Auditado"] || "",
+            leadershipPresent: row[leadershipCol || "Liderança presente"] || "",
             responses,
           };
         });

@@ -16,7 +16,6 @@ export interface PdfTableRow {
   text: string;
   conformePercent: number;
   naoConformePercent: number;
-  naoSeAplicaPercent: number;
   total: number;
   isAlert: boolean;
 }
@@ -36,19 +35,17 @@ const USABLE_W = PAGE_W - MARGIN * 2; // 186 mm
 
 // Column widths (must sum to USABLE_W = 186)
 const W_LABEL = 13;
-const W_TEXT = 93;
+const W_TEXT = 110; // increased from 93 (removed N/A column, +17mm)
 const W_CONF = 22;
 const W_NAO = 25;
-const W_NA = 17;
 const W_TOTAL = 16;
-// Sum: 13+93+22+25+17+16 = 186 ✓
+// Sum: 13+110+22+25+16 = 186 ✓
 
 const X_LABEL = MARGIN;
 const X_TEXT = X_LABEL + W_LABEL;
 const X_CONF = X_TEXT + W_TEXT;
 const X_NAO = X_CONF + W_CONF;
-const X_NA = X_NAO + W_NAO;
-const X_TOTAL = X_NA + W_NA;
+const X_TOTAL = X_NAO + W_NAO;
 
 const FS_TITLE = 13;   // pt
 const FS_META = 8;    // pt
@@ -118,7 +115,6 @@ export function exportTableToPdf (
     pdf.text("Pergunta", X_TEXT + 1, by);
     pdf.text("Conforme", X_CONF + W_CONF / 2, by, { align: "center" });
     pdf.text("Não Conforme", X_NAO + W_NAO / 2, by, { align: "center" });
-    pdf.text("N/A", X_NA + W_NA / 2, by, { align: "center" });
     pdf.text("Total", X_TOTAL + W_TOTAL / 2, by, { align: "center" });
 
     pdf.setTextColor(0, 0, 0);
@@ -313,7 +309,7 @@ export function exportTableToPdf (
       pdf.text(textLines, X_TEXT + 1, by);
 
       // Dominant value determines bold
-      const dom = Math.max(q.conformePercent, q.naoConformePercent, q.naoSeAplicaPercent);
+      const dom = Math.max(q.conformePercent, q.naoConformePercent);
       const pctBaseline = midBaseline(y, rowH, FS_BODY);
 
       // Conforme
@@ -325,11 +321,6 @@ export function exportTableToPdf (
       pdf.setFont("helvetica", q.naoConformePercent === dom && dom > 0 ? "bold" : "normal");
       pdf.setTextColor(...C_NAO);
       pdf.text(`${q.naoConformePercent.toFixed(1)}%`, X_NAO + W_NAO - 1, pctBaseline, { align: "right" });
-
-      // N/A
-      pdf.setFont("helvetica", q.naoSeAplicaPercent === dom && dom > 0 ? "bold" : "normal");
-      pdf.setTextColor(...C_NA);
-      pdf.text(`${q.naoSeAplicaPercent.toFixed(1)}%`, X_NA + W_NA - 1, pctBaseline, { align: "right" });
 
       // Total
       pdf.setFont("helvetica", "normal");

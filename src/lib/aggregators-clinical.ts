@@ -23,6 +23,7 @@ export function computeClinicalQuestionStats (
   }
 
   const total = conforme + naoConforme + naoSeAplica;
+  const validTotal = conforme + naoConforme; // Valid items only (exclude N/A)
 
   return {
     question,
@@ -30,10 +31,10 @@ export function computeClinicalQuestionStats (
     naoConforme,
     naoSeAplica,
     total,
-    conformePercent: total > 0 ? (conforme / total) * 100 : 0,
-    naoConformePercent: total > 0 ? (naoConforme / total) * 100 : 0,
+    conformePercent: validTotal > 0 ? (conforme / validTotal) * 100 : 0,
+    naoConformePercent: validTotal > 0 ? (naoConforme / validTotal) * 100 : 0,
     naoSeAplicaPercent: total > 0 ? (naoSeAplica / total) * 100 : 0,
-    isAlert: total > 0 && (naoConforme / total) * 100 > 30,
+    isAlert: validTotal > 0 && (naoConforme / validTotal) * 100 > 30,
   };
 }
 

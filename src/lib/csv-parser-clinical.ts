@@ -20,6 +20,12 @@ const CLINICAL_META_COLUMNS = [
   "Tipo de auditoria",
 ];
 
+// Find column by normalized name (case-insensitive, trimmed)
+function findColumnByName (headers: string[], targetName: string): string | undefined {
+  const normalized = targetName.trim().toLowerCase();
+  return headers.find(h => h.trim().toLowerCase() === normalized);
+}
+
 export function parseClinicalQuestionHeader (
   header: string
 ): ClinicalParsedQuestion | null {
@@ -78,6 +84,14 @@ export function parseClinicalCSV (
             return catCmp !== 0 ? catCmp : a.sortKey - b.sortKey;
           });
 
+        // Find columns with flexible name matching
+        const timestampCol = findColumnByName(headers, "Carimbo de data/hora");
+        const auditDateCol = findColumnByName(headers, "Data da auditoria");
+        const auditorCol = findColumnByName(headers, "Auditor");
+        const sectorCol = findColumnByName(headers, "Setor/ prontuário da Auditoria");
+        const prontuarioCol = findColumnByName(headers, "RH do paciente");
+        const auditTypeCol = findColumnByName(headers, "Tipo de auditoria");
+
         const rows: ClinicalAuditRow[] = (
           results.data as Record<string, string>[]
         ).map((row) => {
@@ -86,12 +100,12 @@ export function parseClinicalCSV (
             responses[qh] = normalizeResponse(row[qh]);
           }
           return {
-            timestamp: parseBrDate(row["Carimbo de data/hora"] || ""),
-            auditor: row["Auditor"] || "",
-            auditDate: parseBrDate(row["Data da auditoria"] || ""),
-            sector: row["Setor/ prontuário da Auditoria"] || "",
-            prontuario: (row["RH do paciente"] || "").trim(),
-            auditType: (row["Tipo de auditoria"] || "").trim(),
+            timestamp: parseBrDate(row[timestampCol || "Carimbo de data/hora"] || ""),
+            auditor: row[auditorCol || "Auditor"] || "",
+            auditDate: parseBrDate(row[auditDateCol || "Data da auditoria"] || ""),
+            sector: row[sectorCol || "Setor/ prontuário da Auditoria"] || "",
+            prontuario: (row[prontuarioCol || "RH do paciente"] || "").trim(),
+            auditType: (row[auditTypeCol || "Tipo de auditoria"] || "").trim(),
             responses,
           };
         });

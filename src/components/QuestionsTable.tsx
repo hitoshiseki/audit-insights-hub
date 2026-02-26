@@ -53,10 +53,10 @@ function PctCell ({
         <span className="h-1 w-12 rounded-full bg-muted overflow-hidden">
           <span
             className={`block h-full rounded-full ${variant === "conforme"
-                ? "bg-emerald-500"
-                : variant === "nao-conforme"
-                  ? "bg-red-500"
-                  : "bg-muted-foreground/40"
+              ? "bg-emerald-500"
+              : variant === "nao-conforme"
+                ? "bg-red-500"
+                : "bg-muted-foreground/40"
               }`}
             style={{ width: `${value}%` }}
           />
@@ -84,7 +84,6 @@ export function QuestionsTable ({ groups }: QuestionsTableProps) {
             <TableHead>Pergunta</TableHead>
             <TableHead className="text-right w-[100px]">Conforme</TableHead>
             <TableHead className="text-right w-[120px]">Não Conforme</TableHead>
-            <TableHead className="text-right w-[80px]">N/A</TableHead>
             <TableHead className="text-right w-[80px]">Total</TableHead>
           </TableRow>
         </TableHeader>
@@ -136,11 +135,6 @@ export function QuestionsTable ({ groups }: QuestionsTableProps) {
                       value={stats.naoConformePercent}
                       variant="nao-conforme"
                       bold={stats.naoConformePercent === maxPct && maxPct > 0}
-                    />
-                    <PctCell
-                      value={stats.naoSeAplicaPercent}
-                      variant="na"
-                      bold={stats.naoSeAplicaPercent === maxPct && maxPct > 0}
                     />
                     <TableCell className="text-right tabular-nums text-sm text-muted-foreground align-middle">
                       {stats.total}

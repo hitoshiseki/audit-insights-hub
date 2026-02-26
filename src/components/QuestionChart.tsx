@@ -23,7 +23,6 @@ interface QuestionChartProps {
 const COLORS: Record<string, string> = {
   CONFORME: "hsl(160, 60%, 45%)",
   "NÃO CONFORME": "hsl(0, 72%, 51%)",
-  "NÃO SE APLICA": "hsl(220, 10%, 60%)",
 };
 
 interface TooltipPayload {
@@ -54,10 +53,9 @@ export function QuestionChart ({ stats }: QuestionChartProps) {
   const data = [
     { name: "Conforme", percent: stats.conformePercent, count: stats.conforme },
     { name: "Não Conforme", percent: stats.naoConformePercent, count: stats.naoConforme },
-    { name: "N/A", percent: stats.naoSeAplicaPercent, count: stats.naoSeAplica },
   ];
 
-  const colorKeys = ["CONFORME", "NÃO CONFORME", "NÃO SE APLICA"];
+  const colorKeys = ["CONFORME", "NÃO CONFORME"];
 
   return (
     <Card

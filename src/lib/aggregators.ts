@@ -6,7 +6,7 @@ import type {
   GlobalMetrics,
 } from "@/types/audit";
 
-export function computeQuestionStats(
+export function computeQuestionStats (
   question: ParsedQuestion,
   rows: AuditRow[]
 ): QuestionStats {
@@ -22,6 +22,7 @@ export function computeQuestionStats(
   }
 
   const total = conforme + naoConforme + naoSeAplica;
+  const validTotal = conforme + naoConforme; // Valid items only (exclude N/A)
 
   return {
     question,
@@ -29,14 +30,14 @@ export function computeQuestionStats(
     naoConforme,
     naoSeAplica,
     total,
-    conformePercent: total > 0 ? (conforme / total) * 100 : 0,
-    naoConformePercent: total > 0 ? (naoConforme / total) * 100 : 0,
+    conformePercent: validTotal > 0 ? (conforme / validTotal) * 100 : 0,
+    naoConformePercent: validTotal > 0 ? (naoConforme / validTotal) * 100 : 0,
     naoSeAplicaPercent: total > 0 ? (naoSeAplica / total) * 100 : 0,
-    isAlert: total > 0 && (naoConforme / total) * 100 > 30,
+    isAlert: validTotal > 0 && (naoConforme / validTotal) * 100 > 30,
   };
 }
 
-export function groupByCategory(
+export function groupByCategory (
   questions: ParsedQuestion[],
   rows: AuditRow[]
 ): CategoryGroup[] {
@@ -70,7 +71,7 @@ export function groupByCategory(
   return groups.sort((a, b) => a.category.localeCompare(b.category));
 }
 
-export function computeGlobalMetrics(groups: CategoryGroup[], totalRows: number): GlobalMetrics {
+export function computeGlobalMetrics (groups: CategoryGroup[], totalRows: number): GlobalMetrics {
   const allStats = groups.flatMap((g) => g.questions).filter((s) => s.total > 0);
 
   const avgConforme =
