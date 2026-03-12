@@ -69,6 +69,7 @@ export function parseClinicalCSV (
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
+      transformHeader: (h) => h.trim(),
       complete (results) {
         const headers = results.meta.fields || [];
 
