@@ -23,7 +23,7 @@ const App = () => {
         <Toaster />
         <Sonner />
         <AccessGate unlocked={unlocked} onUnlock={() => setUnlocked(true)}>
-          <HashRouter>
+          <HashRouter basename="audit-insights-hub">
             <AppDataProvider>
               <AppNavProvider>
                 <Routes>
