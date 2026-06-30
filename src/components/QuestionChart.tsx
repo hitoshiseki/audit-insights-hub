@@ -13,11 +13,12 @@ import { AlertTriangle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { QuestionStats } from "@/types/audit";
 import type { ClinicalQuestionStats } from "@/types/clinical-audit";
+import type { QualitativeQuestionStats } from "@/types/qualitative-audit";
 import clsx from "clsx";
 
 interface QuestionChartProps {
-  /** Accepts both ROPS and Clinical question stats */
-  stats: QuestionStats | ClinicalQuestionStats;
+  /** Accepts ROPS, Clinical and Qualitative question stats */
+  stats: QuestionStats | ClinicalQuestionStats | QualitativeQuestionStats;
 }
 
 const COLORS: Record<string, string> = {

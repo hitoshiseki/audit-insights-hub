@@ -1,4 +1,5 @@
 import { jsPDF } from "jspdf";
+import type { CategoryObservation } from "@/lib/aggregators-qualitative";
 
 export const REPORT_EMITTER = "Jéssica Pinho da Silva Oliveira — Gerente de Qualidade (HMUE)";
 
@@ -82,7 +83,8 @@ const C_QTEXT: [number, number, number] = [30, 30, 30];
 export function exportTableToPdf (
   groups: PdfTableGroup[],
   filters?: PdfFilterInfo,
-  fileName = "auditoria-tabela.pdf"
+  fileName = "auditoria-tabela.pdf",
+  observations?: { category: string; items: CategoryObservation[] }[]
 ) {
   const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageBottom = PAGE_H - MARGIN;
@@ -334,6 +336,83 @@ export function exportTableToPdf (
     }
 
     y += 2; // breathing room between groups
+  }
+
+  // ── Observations section ──────────────────────────────────────────────────
+  if (observations && observations.some((g) => g.items.length > 0)) {
+    const pad2 = (n: number) => String(n).padStart(2, "0");
+    const fmtDate = (d: Date) => `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()}`;
+    const OBS_LINE_H = FS_BODY * PT_TO_MM * 1.3;
+
+    function obsEnsure (needed: number) {
+      if (y + needed > pageBottom) {
+        pdf.addPage();
+        y = MARGIN;
+      }
+    }
+
+    pdf.addPage();
+    y = MARGIN;
+
+    // Section title
+    pdf.setFontSize(FS_TITLE);
+    pdf.setFont("helvetica", "bold");
+    pdf.setTextColor(0, 0, 0);
+    pdf.text("Observações", MARGIN, y + FS_TITLE * PT_TO_MM);
+    y += FS_TITLE * PT_TO_MM + 2;
+    pdf.setDrawColor(...C_BORDER);
+    pdf.setLineWidth(0.3);
+    pdf.line(MARGIN, y, PAGE_W - MARGIN, y);
+    y += 4;
+
+    for (const group of observations) {
+      if (group.items.length === 0) continue;
+
+      // Category header
+      obsEnsure(CAT_H + MIN_ROW_H);
+      pdf.setFillColor(...C_CAT_BG);
+      pdf.rect(MARGIN, y, USABLE_W, CAT_H, "F");
+      pdf.setFontSize(FS_CAT);
+      pdf.setFont("helvetica", "bold");
+      pdf.setTextColor(...C_CAT_TXT);
+      pdf.text(group.category, MARGIN + 2, midBaseline(y, CAT_H, FS_CAT));
+      pdf.setTextColor(0, 0, 0);
+      rowBorder(y, CAT_H);
+      y += CAT_H + 1.5;
+
+      for (const item of group.items) {
+        // Meta line: setor • prontuário • data
+        const metaParts = [item.sector || "—"];
+        if (item.prontuario) metaParts.push(`Prontuário: ${item.prontuario}`);
+        metaParts.push(fmtDate(item.date));
+        const meta = metaParts.join("  •  ");
+
+        pdf.setFontSize(FS_BODY);
+        const textLines: string[] = pdf.splitTextToSize(item.text, USABLE_W - 4);
+        const metaLineH = FS_META * PT_TO_MM * 1.4;
+        const blockH = metaLineH + textLines.length * OBS_LINE_H + 3;
+
+        obsEnsure(blockH);
+
+        // Meta
+        pdf.setFontSize(FS_META);
+        pdf.setFont("helvetica", "bold");
+        pdf.setTextColor(...C_NA);
+        pdf.text(meta, MARGIN + 2, y + metaLineH * 0.8);
+        y += metaLineH;
+
+        // Text
+        pdf.setFontSize(FS_BODY);
+        pdf.setFont("helvetica", "normal");
+        pdf.setTextColor(...C_QTEXT);
+        pdf.text(textLines, MARGIN + 2, y + OBS_LINE_H * 0.8);
+        y += textLines.length * OBS_LINE_H + 3;
+
+        pdf.setTextColor(0, 0, 0);
+      }
+
+      y += 2;
+    }
   }
 
   // ── Page numbers + emitter ────────────────────────────────────────────────

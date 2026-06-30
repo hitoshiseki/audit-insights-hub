@@ -10,6 +10,7 @@ import { AccessGate } from "@/components/AccessGate";
 import { isUnlocked } from "@/lib/gate";
 import Dashboard from "./pages/Dashboard";
 import ClinicalDashboard from "./pages/ClinicalDashboard";
+import QualitativeDashboard from "./pages/QualitativeDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ const App = () => {
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/clinical" element={<ClinicalDashboard />} />
+                  <Route path="/qualitative" element={<QualitativeDashboard />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </AppNavProvider>

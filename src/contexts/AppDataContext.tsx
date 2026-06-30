@@ -1,8 +1,10 @@
 import { createContext, useContext, useState, useCallback, useEffect } from "react";
 import type { AuditRow, ParsedQuestion } from "@/types/audit";
 import type { ClinicalAuditRow, ClinicalParsedQuestion } from "@/types/clinical-audit";
+import type { QualitativeAuditRow, QualitativeParsedQuestion } from "@/types/qualitative-audit";
 import { parseCSV } from "@/lib/csv-parser";
 import { parseClinicalCSV } from "@/lib/csv-parser-clinical";
+import { parseQualitativeCSV } from "@/lib/csv-parser-qualitative";
 
 interface RopsState {
   rows: AuditRow[];
@@ -13,6 +15,12 @@ interface RopsState {
 interface ClinicalState {
   rows: ClinicalAuditRow[];
   questions: ClinicalParsedQuestion[];
+  fileName: string;
+}
+
+interface QualitativeState {
+  rows: QualitativeAuditRow[];
+  questions: QualitativeParsedQuestion[];
   fileName: string;
 }
 
@@ -27,6 +35,11 @@ interface AppDataContextValue {
   clinicalError: string | null;
   loadClinical: (file: File) => Promise<void>;
 
+  qualitative: QualitativeState | null;
+  qualitativeLoading: boolean;
+  qualitativeError: string | null;
+  loadQualitative: (file: File) => Promise<void>;
+
   clearAllData: () => void;
 }
 
@@ -39,6 +52,10 @@ const AppDataContext = createContext<AppDataContextValue>({
   clinicalLoading: false,
   clinicalError: null,
   loadClinical: async () => { },
+  qualitative: null,
+  qualitativeLoading: false,
+  qualitativeError: null,
+  loadQualitative: async () => { },
   clearAllData: () => { },
 });
 
@@ -47,8 +64,9 @@ export function useAppData () {
 }
 
 // ── localStorage keys ──────────────────────────────────────────────────────────
-const KEY_ROPS     = "audit-insights-rops";
-const KEY_CLINICAL = "audit-insights-clinical";
+const KEY_ROPS        = "audit-insights-rops";
+const KEY_CLINICAL    = "audit-insights-clinical";
+const KEY_QUALITATIVE = "audit-insights-qualitative";
 
 // ── Serialization helpers ──────────────────────────────────────────────────────
 
@@ -106,6 +124,33 @@ function deserializeClinical (json: string): ClinicalState {
   };
 }
 
+function serializeQualitative (state: QualitativeState): string {
+  return JSON.stringify({
+    ...state,
+    rows: state.rows.map((r) => ({
+      ...r,
+      timestamp: r.timestamp.toISOString(),
+      auditDate: r.auditDate.toISOString(),
+    })),
+  });
+}
+
+function deserializeQualitative (json: string): QualitativeState {
+  const parsed = JSON.parse(json) as {
+    rows: (Omit<QualitativeAuditRow, "timestamp" | "auditDate"> & { timestamp: string; auditDate: string })[];
+    questions: QualitativeParsedQuestion[];
+    fileName: string;
+  };
+  return {
+    ...parsed,
+    rows: parsed.rows.map((r) => ({
+      ...r,
+      timestamp: new Date(r.timestamp),
+      auditDate: new Date(r.auditDate),
+    })),
+  };
+}
+
 // ── Provider ───────────────────────────────────────────────────────────────────
 
 export function AppDataProvider ({ children }: { children: React.ReactNode }) {
@@ -116,6 +161,10 @@ export function AppDataProvider ({ children }: { children: React.ReactNode }) {
   const [clinical, setClinical] = useState<ClinicalState | null>(null);
   const [clinicalLoading, setClinicalLoading] = useState(false);
   const [clinicalError, setClinicalError] = useState<string | null>(null);
+
+  const [qualitative, setQualitative] = useState<QualitativeState | null>(null);
+  const [qualitativeLoading, setQualitativeLoading] = useState(false);
+  const [qualitativeError, setQualitativeError] = useState<string | null>(null);
 
   // Hydrate from localStorage on mount
   useEffect(() => {
@@ -131,6 +180,13 @@ export function AppDataProvider ({ children }: { children: React.ReactNode }) {
       if (clinicalJson) setClinical(deserializeClinical(clinicalJson));
     } catch {
       localStorage.removeItem(KEY_CLINICAL);
+    }
+
+    try {
+      const qualitativeJson = localStorage.getItem(KEY_QUALITATIVE);
+      if (qualitativeJson) setQualitative(deserializeQualitative(qualitativeJson));
+    } catch {
+      localStorage.removeItem(KEY_QUALITATIVE);
     }
   }, []);
 
@@ -174,13 +230,36 @@ export function AppDataProvider ({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const loadQualitative = useCallback(async (file: File) => {
+    setQualitativeLoading(true);
+    setQualitativeError(null);
+    try {
+      const result = await parseQualitativeCSV(file);
+      const state: QualitativeState = { rows: result.rows, questions: result.questions, fileName: file.name };
+      setQualitative(state);
+      try {
+        localStorage.setItem(KEY_QUALITATIVE, serializeQualitative(state));
+      } catch {
+        // Storage quota exceeded — silently ignore
+      }
+    } catch (e) {
+      setQualitative(null);
+      setQualitativeError(e instanceof Error ? e.message : "Erro ao processar o arquivo CSV. Verifique o formato.");
+    } finally {
+      setQualitativeLoading(false);
+    }
+  }, []);
+
   const clearAllData = useCallback(() => {
     setRops(null);
     setClinical(null);
+    setQualitative(null);
     setRopsError(null);
     setClinicalError(null);
+    setQualitativeError(null);
     localStorage.removeItem(KEY_ROPS);
     localStorage.removeItem(KEY_CLINICAL);
+    localStorage.removeItem(KEY_QUALITATIVE);
   }, []);
 
   return (
@@ -188,6 +267,7 @@ export function AppDataProvider ({ children }: { children: React.ReactNode }) {
       value={{
         rops, ropsLoading, ropsError, loadRops,
         clinical, clinicalLoading, clinicalError, loadClinical,
+        qualitative, qualitativeLoading, qualitativeError, loadQualitative,
         clearAllData,
       }}
     >

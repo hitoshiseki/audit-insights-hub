@@ -9,8 +9,9 @@ import {
 import { AlertTriangle } from "lucide-react";
 import type { QuestionStats } from "@/types/audit";
 import type { ClinicalQuestionStats } from "@/types/clinical-audit";
+import type { QualitativeQuestionStats } from "@/types/qualitative-audit";
 
-type AnyStats = QuestionStats | ClinicalQuestionStats;
+type AnyStats = QuestionStats | ClinicalQuestionStats | QualitativeQuestionStats;
 
 interface TableGroup {
   category: string;
