@@ -3,6 +3,7 @@ import { format } from "date-fns";
 import { CsvUpload } from "@/components/CsvUpload";
 import { GlobalFilters } from "@/components/GlobalFilters";
 import { MetricsOverview } from "@/components/MetricsOverview";
+import { EmptyFilterState } from "@/components/EmptyFilterState";
 import { CategorySection } from "@/components/CategorySection";
 import { QuestionChart } from "@/components/QuestionChart";
 import { QuestionsTable } from "@/components/QuestionsTable";
@@ -187,7 +188,10 @@ export default function ClinicalDashboard () {
       <div className="flex flex-1 overflow-hidden">
         <main className="flex-1 overflow-y-auto p-4 pb-10 lg:p-6 lg:pb-10">
           <div className="space-y-6">
-
+            {filteredRows.length === 0 ? (
+              <EmptyFilterState />
+            ) : (
+              <>
             <MetricsOverview metrics={globalMetrics} />
             <AuditTypeChart stats={auditTypeStats} />
 
@@ -211,6 +215,8 @@ export default function ClinicalDashboard () {
                 <QuestionsTable groups={displayedGroups} />
               </TabsContent>
             </Tabs>
+              </>
+            )}
           </div>
         </main>
       </div>

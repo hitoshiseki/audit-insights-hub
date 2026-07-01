@@ -3,6 +3,7 @@ import { format } from "date-fns";
 import { CsvUpload } from "@/components/CsvUpload";
 import { GlobalFilters } from "@/components/GlobalFilters";
 import { MetricsOverview } from "@/components/MetricsOverview";
+import { EmptyFilterState } from "@/components/EmptyFilterState";
 import { CategorySection } from "@/components/CategorySection";
 import { QuestionChart } from "@/components/QuestionChart";
 import { QuestionsTable } from "@/components/QuestionsTable";
@@ -187,19 +188,18 @@ export default function QualitativeDashboard () {
       <div className="flex flex-1 overflow-hidden">
         <main className="flex-1 overflow-y-auto p-4 pb-10 lg:p-6 lg:pb-10">
           <div className="space-y-6">
-
+            {filteredRows.length === 0 ? (
+              <EmptyFilterState />
+            ) : (
+              <>
             <MetricsOverview metrics={globalMetrics} />
 
-            <Tabs defaultValue="observations">
+            <Tabs defaultValue="charts">
               <TabsList>
-                <TabsTrigger value="observations">Observações</TabsTrigger>
                 <TabsTrigger value="charts">Gráficos</TabsTrigger>
                 <TabsTrigger value="table">Tabela</TabsTrigger>
+                <TabsTrigger value="observations">Observações</TabsTrigger>
               </TabsList>
-
-              <TabsContent value="observations" className="mt-4">
-                <ObservationsPanel observations={observations} />
-              </TabsContent>
 
               <TabsContent value="charts" className="mt-4 space-y-6">
                 {displayedGroups.map((group) => (
@@ -214,7 +214,13 @@ export default function QualitativeDashboard () {
               <TabsContent value="table" className="mt-4">
                 <QuestionsTable groups={displayedGroups} />
               </TabsContent>
+
+              <TabsContent value="observations" className="mt-4">
+                <ObservationsPanel observations={observations} />
+              </TabsContent>
             </Tabs>
+              </>
+            )}
           </div>
         </main>
       </div>

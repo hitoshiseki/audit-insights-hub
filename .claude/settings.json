@@ -1,0 +1,15 @@
+{
+    "permissions": {
+        "allow": [
+            "Bash",
+            "Edit",
+            "Write"
+        ],
+        "ask": [
+            "Bash(rm:*)",
+            "Bash(rm -rf:*)",
+            "Bash(rmdir:*)",
+            "Bash(git rm:*)"
+        ]
+    }
+}
