@@ -2,9 +2,11 @@ import { createContext, useContext, useState, useCallback, useEffect } from "rea
 import type { AuditRow, ParsedQuestion } from "@/types/audit";
 import type { ClinicalAuditRow, ClinicalParsedQuestion } from "@/types/clinical-audit";
 import type { QualitativeAuditRow, QualitativeParsedQuestion } from "@/types/qualitative-audit";
+import type { BoletimRow } from "@/types/boletim";
 import { parseCSV } from "@/lib/csv-parser";
 import { parseClinicalCSV } from "@/lib/csv-parser-clinical";
 import { parseQualitativeCSV } from "@/lib/csv-parser-qualitative";
+import { parseBoletimCSV } from "@/lib/csv-parser-boletim";
 
 interface RopsState {
   rows: AuditRow[];
@@ -24,6 +26,11 @@ interface QualitativeState {
   fileName: string;
 }
 
+interface BoletimState {
+  rows: BoletimRow[];
+  fileName: string;
+}
+
 interface AppDataContextValue {
   rops: RopsState | null;
   ropsLoading: boolean;
@@ -39,6 +46,11 @@ interface AppDataContextValue {
   qualitativeLoading: boolean;
   qualitativeError: string | null;
   loadQualitative: (file: File) => Promise<void>;
+
+  boletim: BoletimState | null;
+  boletimLoading: boolean;
+  boletimError: string | null;
+  loadBoletim: (file: File) => Promise<void>;
 
   clearAllData: () => void;
 }
@@ -56,6 +68,10 @@ const AppDataContext = createContext<AppDataContextValue>({
   qualitativeLoading: false,
   qualitativeError: null,
   loadQualitative: async () => { },
+  boletim: null,
+  boletimLoading: false,
+  boletimError: null,
+  loadBoletim: async () => { },
   clearAllData: () => { },
 });
 
@@ -67,6 +83,7 @@ export function useAppData () {
 const KEY_ROPS        = "audit-insights-rops";
 const KEY_CLINICAL    = "audit-insights-clinical";
 const KEY_QUALITATIVE = "audit-insights-qualitative";
+const KEY_BOLETIM     = "audit-insights-boletim";
 
 // ── Serialization helpers ──────────────────────────────────────────────────────
 
@@ -151,6 +168,30 @@ function deserializeQualitative (json: string): QualitativeState {
   };
 }
 
+function serializeBoletim (state: BoletimState): string {
+  return JSON.stringify({
+    ...state,
+    rows: state.rows.map((r) => ({
+      ...r,
+      createdAt: r.createdAt.toISOString(),
+    })),
+  });
+}
+
+function deserializeBoletim (json: string): BoletimState {
+  const parsed = JSON.parse(json) as {
+    rows: (Omit<BoletimRow, "createdAt"> & { createdAt: string })[];
+    fileName: string;
+  };
+  return {
+    ...parsed,
+    rows: parsed.rows.map((r) => ({
+      ...r,
+      createdAt: new Date(r.createdAt),
+    })),
+  };
+}
+
 // ── Provider ───────────────────────────────────────────────────────────────────
 
 export function AppDataProvider ({ children }: { children: React.ReactNode }) {
@@ -165,6 +206,10 @@ export function AppDataProvider ({ children }: { children: React.ReactNode }) {
   const [qualitative, setQualitative] = useState<QualitativeState | null>(null);
   const [qualitativeLoading, setQualitativeLoading] = useState(false);
   const [qualitativeError, setQualitativeError] = useState<string | null>(null);
+
+  const [boletim, setBoletim] = useState<BoletimState | null>(null);
+  const [boletimLoading, setBoletimLoading] = useState(false);
+  const [boletimError, setBoletimError] = useState<string | null>(null);
 
   // Hydrate from localStorage on mount
   useEffect(() => {
@@ -187,6 +232,13 @@ export function AppDataProvider ({ children }: { children: React.ReactNode }) {
       if (qualitativeJson) setQualitative(deserializeQualitative(qualitativeJson));
     } catch {
       localStorage.removeItem(KEY_QUALITATIVE);
+    }
+
+    try {
+      const boletimJson = localStorage.getItem(KEY_BOLETIM);
+      if (boletimJson) setBoletim(deserializeBoletim(boletimJson));
+    } catch {
+      localStorage.removeItem(KEY_BOLETIM);
     }
   }, []);
 
@@ -250,16 +302,39 @@ export function AppDataProvider ({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const loadBoletim = useCallback(async (file: File) => {
+    setBoletimLoading(true);
+    setBoletimError(null);
+    try {
+      const result = await parseBoletimCSV(file);
+      const state: BoletimState = { rows: result.rows, fileName: file.name };
+      setBoletim(state);
+      try {
+        localStorage.setItem(KEY_BOLETIM, serializeBoletim(state));
+      } catch {
+        // Storage quota exceeded — silently ignore
+      }
+    } catch (e) {
+      setBoletim(null);
+      setBoletimError(e instanceof Error ? e.message : "Erro ao processar o arquivo CSV. Verifique o formato.");
+    } finally {
+      setBoletimLoading(false);
+    }
+  }, []);
+
   const clearAllData = useCallback(() => {
     setRops(null);
     setClinical(null);
     setQualitative(null);
+    setBoletim(null);
     setRopsError(null);
     setClinicalError(null);
     setQualitativeError(null);
+    setBoletimError(null);
     localStorage.removeItem(KEY_ROPS);
     localStorage.removeItem(KEY_CLINICAL);
     localStorage.removeItem(KEY_QUALITATIVE);
+    localStorage.removeItem(KEY_BOLETIM);
   }, []);
 
   return (
@@ -268,6 +343,7 @@ export function AppDataProvider ({ children }: { children: React.ReactNode }) {
         rops, ropsLoading, ropsError, loadRops,
         clinical, clinicalLoading, clinicalError, loadClinical,
         qualitative, qualitativeLoading, qualitativeError, loadQualitative,
+        boletim, boletimLoading, boletimError, loadBoletim,
         clearAllData,
       }}
     >

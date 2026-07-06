@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { BarChart3, Stethoscope, ClipboardList, X, Menu, ChevronLeft, ChevronRight } from "lucide-react";
+import { BarChart3, Stethoscope, ClipboardList, FileWarning, X, Menu, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useSwipeGesture } from "@/hooks/use-swipe-gesture";
@@ -34,6 +34,7 @@ const NAV_ITEMS = [
   { label: "Auditoria ROPS", href: "/", icon: BarChart3 },
   { label: "Auditoria Clínica", href: "/clinical", icon: Stethoscope },
   { label: "Auditoria Qualitativa", href: "/qualitative", icon: ClipboardList },
+  { label: "Boletim de NC", href: "/boletim", icon: FileWarning },
 ];
 
 // ─── Sidebar ─────────────────────────────────────────────────────────────────

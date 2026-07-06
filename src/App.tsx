@@ -11,6 +11,7 @@ import { isUnlocked } from "@/lib/gate";
 import Dashboard from "./pages/Dashboard";
 import ClinicalDashboard from "./pages/ClinicalDashboard";
 import QualitativeDashboard from "./pages/QualitativeDashboard";
+import BoletimDashboard from "./pages/BoletimDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +33,7 @@ const App = () => {
                   <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/clinical" element={<ClinicalDashboard />} />
                   <Route path="/qualitative" element={<QualitativeDashboard />} />
+                  <Route path="/boletim" element={<BoletimDashboard />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </AppNavProvider>
