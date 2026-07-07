@@ -9,14 +9,17 @@ import {
   ResponsiveContainer,
   LabelList,
 } from "recharts";
+import type { ReactNode } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import type { CountItem, MonthCount } from "@/types/boletim";
 
-// Report reference colors (navy / red / olive)
+// Report reference colors (navy / red / olive). Tones lightly refined for a more
+// harmonious, higher-contrast institutional palette; hues kept from the reference.
 export const BOLETIM_COLORS = {
-  navy: "hsl(219, 52%, 30%)",
-  red: "hsl(0, 68%, 42%)",
-  olive: "hsl(69, 36%, 36%)",
+  navy: "hsl(219, 54%, 32%)",
+  red: "hsl(0, 65%, 45%)",
+  olive: "hsl(74, 40%, 34%)",
   orange: "hsl(24, 90%, 52%)",
 } as const;
 
@@ -57,7 +60,7 @@ function chartGradients () {
 
 const GRID_STROKE = "hsl(var(--border))";
 // Print-oriented: dark, larger tick text so it stays legible on paper at a distance.
-const AXIS_TICK = { fontSize: 12, fill: "hsl(var(--foreground))" };
+const AXIS_TICK = { fontSize: 15, fill: "hsl(var(--foreground))" };
 
 interface CountTooltipPayload {
   payload: { label: string; count: number };
@@ -93,6 +96,73 @@ function truncate (s: string, max: number): string {
   return s.length > max ? `${s.slice(0, max - 1)}…` : s;
 }
 
+// Custom Y-axis tick that renders a plain <text> (single line). Recharts' default
+// tick uses its <Text> component, which word-wraps long labels into several lines;
+// a plain <text> never wraps, so the label stays on one line and `truncate` adds
+// the ellipsis. Recharts injects x/y/payload via cloneElement.
+//
+// The label is right-anchored, so it extends left from the axis — if it were wider
+// than the reserved column (`yWidth`) it would spill past the SVG edge and get
+// clipped at the start. So truncate to whatever fits `yWidth` in px (≈ 0.6em per
+// char at 13px), capped by `labelMax`.
+const Y_TICK_FONT = 13;
+function SingleLineYTick ({
+  x,
+  y,
+  payload,
+  labelMax,
+  yWidth,
+}: {
+  x?: number;
+  y?: number;
+  payload?: { value: string };
+  labelMax: number;
+  yWidth: number;
+}) {
+  const fitChars = Math.max(4, Math.floor((yWidth - 14) / (Y_TICK_FONT * 0.6)));
+  return (
+    <text x={x} y={y} dy={4} textAnchor="end" fontSize={Y_TICK_FONT} fill="hsl(var(--foreground))">
+      {truncate(payload?.value ?? "", Math.min(labelMax, fitChars))}
+    </text>
+  );
+}
+
+// ── Shared card shell (accent bar + standardized header) ──────────────────────
+// Every boletim card renders through this so the report reads as one system:
+// a solid colored accent bar on top, then an uppercase navy title with a matching
+// color chip. Accent/title use inline hsl (BOLETIM_COLORS) so html2canvas-pro
+// paints them in the PDF export.
+
+interface ChartShellProps {
+  title: string;
+  /** Semantic color of the card (red = recebidas, olive/navy = realizadas…). */
+  accent: string;
+  className?: string;
+  children: ReactNode;
+}
+
+function ChartShell ({ title, accent, className, children }: ChartShellProps) {
+  return (
+    <Card className={cn("flex h-full flex-col overflow-hidden border-border/60 shadow-sm", className)}>
+      <div className="h-1.5 w-full shrink-0" style={{ backgroundColor: accent }} />
+      <CardHeader className="pb-2 pt-3.5">
+        <CardTitle
+          className="flex items-start gap-2.5 text-2xl font-bold uppercase leading-tight tracking-tight"
+          style={{ color: BOLETIM_COLORS.navy }}
+        >
+          <span
+            aria-hidden
+            className="mt-[7px] h-3 w-3 shrink-0 rounded-[3px]"
+            style={{ backgroundColor: accent }}
+          />
+          <span>{title}</span>
+        </CardTitle>
+      </CardHeader>
+      {children}
+    </Card>
+  );
+}
+
 // ── Notificações por data (vertical bars, one per month) ──────────────────────
 
 export function NotificationsByMonthChart ({
@@ -104,14 +174,12 @@ export function NotificationsByMonthChart ({
 }) {
   const hasHighlight = highlightMonth !== null;
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-semibold uppercase leading-tight">
-          Número de notificações de não conformidade de interação — Geral
-        </CardTitle>
-      </CardHeader>
+    <ChartShell
+      title="Número de notificações de não conformidade de interação — Geral"
+      accent={BOLETIM_COLORS.navy}
+    >
       <CardContent>
-        <div className="h-[280px] w-full">
+        <div data-chart-box className="aspect-[5/2] min-h-[260px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data} margin={{ top: 20, right: 8, bottom: 4, left: -16 }}>
               {chartGradients()}
@@ -120,7 +188,7 @@ export function NotificationsByMonthChart ({
                 dataKey="label"
                 axisLine={false}
                 tickLine={false}
-                tick={AXIS_TICK}
+                tick={{ ...AXIS_TICK, fontSize: 14 }}
                 interval={0}
               />
               <YAxis
@@ -130,7 +198,7 @@ export function NotificationsByMonthChart ({
                 allowDecimals={false}
               />
               <Tooltip content={<CountTooltip />} cursor={{ fill: "hsl(var(--accent))", opacity: 0.5 }} />
-              <Bar dataKey="count" radius={[5, 5, 0, 0]} maxBarSize={40}>
+              <Bar dataKey="count" radius={[5, 5, 0, 0]} maxBarSize={40} isAnimationActive={false}>
                 {data.map((entry) => {
                   const isHighlighted = entry.month === highlightMonth;
                   return (
@@ -145,14 +213,14 @@ export function NotificationsByMonthChart ({
                   dataKey="count"
                   position="top"
                   formatter={(v: number) => (v > 0 ? v : "")}
-                  style={{ fontSize: 13, fontWeight: 700, fill: "hsl(var(--foreground))" }}
+                  style={{ fontSize: 16, fontWeight: 700, fill: "hsl(var(--foreground))" }}
                 />
               </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
       </CardContent>
-    </Card>
+    </ChartShell>
   );
 }
 
@@ -166,14 +234,11 @@ interface VerticalCountChartProps {
 
 export function VerticalCountChart ({ title, data, color }: VerticalCountChartProps) {
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-semibold uppercase leading-tight">{title}</CardTitle>
-      </CardHeader>
+    <ChartShell title={title} accent={color}>
       <CardContent>
-        <div className="h-[320px] w-full">
+        <div data-chart-box className="aspect-[16/9] min-h-[320px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} margin={{ top: 20, right: 8, bottom: 96, left: -16 }}>
+            <BarChart data={data} margin={{ top: 14, right: 8, bottom: 58, left: -16 }}>
               {chartGradients()}
               <CartesianGrid vertical={false} stroke={GRID_STROKE} strokeOpacity={0.6} />
               <XAxis
@@ -183,9 +248,9 @@ export function VerticalCountChart ({ title, data, color }: VerticalCountChartPr
                 interval={0}
                 angle={-90}
                 textAnchor="end"
-                height={96}
-                tick={{ fontSize: 11, fill: "hsl(var(--foreground))" }}
-                tickFormatter={(v: string) => truncate(v, 22)}
+                height={58}
+                tick={{ fontSize: 10, fill: "hsl(var(--foreground))" }}
+                tickFormatter={(v: string) => truncate(v, 16)}
               />
               <YAxis
                 axisLine={false}
@@ -194,18 +259,18 @@ export function VerticalCountChart ({ title, data, color }: VerticalCountChartPr
                 allowDecimals={false}
               />
               <Tooltip content={<CountTooltip />} cursor={{ fill: "hsl(var(--accent))", opacity: 0.5 }} />
-              <Bar dataKey="count" fill={gradFill(color, "v")} radius={[4, 4, 0, 0]} maxBarSize={32}>
+              <Bar dataKey="count" fill={gradFill(color, "v")} radius={[4, 4, 0, 0]} maxBarSize={32} isAnimationActive={false}>
                 <LabelList
                   dataKey="count"
                   position="top"
-                  style={{ fontSize: 12, fontWeight: 700, fill: "hsl(var(--foreground))" }}
+                  style={{ fontSize: 15, fontWeight: 700, fill: "hsl(var(--foreground))" }}
                 />
               </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
       </CardContent>
-    </Card>
+    </ChartShell>
   );
 }
 
@@ -215,18 +280,25 @@ interface HorizontalCountChartProps {
   title: string;
   data: CountItem[];
   color: string;
+  /** Max chars before truncating the Y-axis label with an ellipsis. */
+  labelMax?: number;
+  /** Width reserved for the Y-axis (label column) in px. */
+  yWidth?: number;
 }
 
-export function HorizontalCountChart ({ title, data, color }: HorizontalCountChartProps) {
+export function HorizontalCountChart ({
+  title,
+  data,
+  color,
+  labelMax = 44,
+  yWidth = 260,
+}: HorizontalCountChartProps) {
   const barHeight = 30;
   const height = Math.max(220, data.length * barHeight + 40);
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-semibold uppercase leading-tight">{title}</CardTitle>
-      </CardHeader>
+    <ChartShell title={title} accent={color}>
       <CardContent>
-        <div className="w-full" style={{ height }}>
+        <div data-chart-box className="w-full" style={{ height }}>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={data}
@@ -245,50 +317,56 @@ export function HorizontalCountChart ({ title, data, color }: HorizontalCountCha
               <YAxis
                 type="category"
                 dataKey="label"
-                width={260}
+                width={yWidth}
                 axisLine={false}
                 tickLine={false}
                 interval={0}
-                tick={{ fontSize: 11, fill: "hsl(var(--foreground))" }}
-                tickFormatter={(v: string) => truncate(v, 44)}
+                tick={<SingleLineYTick labelMax={labelMax} yWidth={yWidth} />}
               />
               <Tooltip content={<CountTooltip />} cursor={{ fill: "hsl(var(--accent))", opacity: 0.5 }} />
-              <Bar dataKey="count" fill={gradFill(color, "h")} radius={[0, 4, 4, 0]} maxBarSize={22}>
+              <Bar dataKey="count" fill={gradFill(color, "h")} radius={[0, 4, 4, 0]} maxBarSize={22} isAnimationActive={false}>
                 <LabelList
                   dataKey="count"
                   position="right"
-                  style={{ fontSize: 13, fontWeight: 700, fill: "hsl(var(--foreground))" }}
+                  style={{ fontSize: 16, fontWeight: 700, fill: "hsl(var(--foreground))" }}
                 />
               </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
       </CardContent>
-    </Card>
+    </ChartShell>
   );
 }
 
-// ── Single total (hero figure — the number is the chart) ──────────────────────
+// ── Single count (hero figure — the number is the chart) ──────────────────────
 
-export function TotalBarChart ({ title, total }: { title: string; total: number }) {
+interface CountCardProps {
+  title: string;
+  value: number;
+  color: string;
+  /** Optional label shown small below the number (e.g. the single interaction). */
+  caption?: string;
+}
+
+export function CountCard ({ title, value, color, caption }: CountCardProps) {
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-semibold uppercase leading-tight">{title}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="flex h-[240px] flex-col items-center justify-center gap-1">
+    <ChartShell title={title} accent={color}>
+      <CardContent className="flex flex-1 items-center justify-center">
+        <div className="flex min-h-[160px] flex-col items-center justify-center gap-2 text-center">
           <span
-            className="text-7xl font-extrabold leading-none tracking-tight"
-            style={{ color: BOLETIM_COLORS.navy }}
+            className="text-9xl font-extrabold leading-none tracking-tight"
+            style={{ color }}
           >
-            {total}
+            {value.toLocaleString("pt-BR")}
           </span>
-          <span className="text-sm font-medium text-muted-foreground">
-            notificaç{total !== 1 ? "ões" : "ão"} realizada{total !== 1 ? "s" : ""}
-          </span>
+          {caption && (
+            <span className="max-w-[90%] text-xs font-medium leading-snug text-muted-foreground">
+              {caption}
+            </span>
+          )}
         </div>
       </CardContent>
-    </Card>
+    </ChartShell>
   );
 }

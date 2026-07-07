@@ -107,6 +107,21 @@ export function interacoesRecebidasPeloSetor (
   return countBy(filtered, (r) => r.interacao).slice(0, n);
 }
 
+/** Interações mais realizadas por um setor (filtra setorNotificante === setor). */
+export function interacoesRealizadasPeloSetor (
+  rows: BoletimRow[],
+  setor: string,
+  n = 12
+): CountItem[] {
+  const filtered = rows.filter((r) => r.setorNotificante === setor);
+  return countBy(filtered, (r) => r.interacao).slice(0, n);
+}
+
+/** Total de notificações recebidas por um setor (como notificado). */
+export function totalRecebidasPeloSetor (rows: BoletimRow[], setor: string): number {
+  return rows.filter((r) => r.setorNotificado === setor).length;
+}
+
 /** Total de notificações realizadas por um setor (como notificante). */
 export function totalRealizadasPeloSetor (rows: BoletimRow[], setor: string): number {
   return rows.filter((r) => r.setorNotificante === setor).length;

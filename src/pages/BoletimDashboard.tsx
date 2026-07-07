@@ -29,13 +29,15 @@ import {
   filterByMonth,
   ALL_MONTHS,
   interacoesRecebidasPeloSetor,
+  interacoesRealizadasPeloSetor,
+  totalRecebidasPeloSetor,
   totalRealizadasPeloSetor,
 } from "@/lib/aggregators-boletim";
 import {
   NotificationsByMonthChart,
   VerticalCountChart,
   HorizontalCountChart,
-  TotalBarChart,
+  CountCard,
   BOLETIM_COLORS,
 } from "@/components/boletim/BoletimCharts";
 import logoPdf from "@/assets/logo-pdf.png";
@@ -43,14 +45,20 @@ import logoPdf from "@/assets/logo-pdf.png";
 const FOOTER_TEXT =
   "A notificação de NÃO CONFORMIDADE deve ser realizada em decorrência do descumprimento de requisitos descritos em normas, procedimentos, manuais, instruções de trabalho que estejam alinhados em contrato e interações de processos entre as áreas. Após a sua notificação, o gestor do setor notificado irá analisar e traçar plano de ação com aprovação da diretoria. O feedback das análises das notificações são acompanhadas pelo gestor do setor notificantes via Interact.";
 
-const FOOTER_NOTE =
-  "* “Outros” corresponde a notificações relacionadas a processos com fluxos ainda não formalizados através de interações ou que estão em fase de definição, o que reforça a importância de analisá-los para futuras padronizações.";
+// Solid light navy for header pills — kept solid (not translucent) so html2canvas-pro
+// paints it reliably in the printed header.
+const PILL_BG = "hsl(219, 45%, 95%)";
 
+// Translucent tint of a solid hsl color. Only used on screen-only elements
+// (KPI cards are data-html2canvas-ignore), so hsla is safe here.
+const tint = (color: string, alpha: number) =>
+  color.replace("hsl(", "hsla(").replace(")", `, ${alpha})`);
 interface KpiCard {
   label: string;
   value: string;
   subtitle?: string;
   icon: typeof ClipboardList;
+  accent: string;
 }
 
 export default function BoletimDashboard () {
@@ -104,6 +112,14 @@ export default function BoletimDashboard () {
     () => (isGeral ? [] : interacoesRecebidasPeloSetor(filteredRows, selectedSector, 12)),
     [filteredRows, selectedSector, isGeral]
   );
+  const setorRealizadas = useMemo(
+    () => (isGeral ? [] : interacoesRealizadasPeloSetor(filteredRows, selectedSector, 12)),
+    [filteredRows, selectedSector, isGeral]
+  );
+  const setorRecebidasTotal = useMemo(
+    () => (isGeral ? 0 : totalRecebidasPeloSetor(filteredRows, selectedSector)),
+    [filteredRows, selectedSector, isGeral]
+  );
   const setorRealizadasTotal = useMemo(
     () => (isGeral ? 0 : totalRealizadasPeloSetor(filteredRows, selectedSector)),
     [filteredRows, selectedSector, isGeral]
@@ -132,19 +148,21 @@ export default function BoletimDashboard () {
   };
 
   const kpis: KpiCard[] = [
-    { label: "Total de notificações", value: String(metrics.total), icon: ClipboardList },
-    { label: "Setores notificados", value: String(metrics.setoresNotificados), icon: Building2 },
+    { label: "Total de notificações", value: String(metrics.total), icon: ClipboardList, accent: BOLETIM_COLORS.navy },
+    { label: "Setores notificados", value: String(metrics.setoresNotificados), icon: Building2, accent: BOLETIM_COLORS.olive },
     {
       label: "Interação mais notificada",
       value: metrics.topInteracao,
       subtitle: `${metrics.topInteracaoCount} notificações`,
       icon: AlertTriangle,
+      accent: BOLETIM_COLORS.red,
     },
     {
       label: "Setor + notificante",
       value: metrics.topNotificante,
       subtitle: `${metrics.topNotificanteCount} notificações`,
       icon: Send,
+      accent: BOLETIM_COLORS.orange,
     },
   ];
 
@@ -238,112 +256,165 @@ export default function BoletimDashboard () {
       </div>
 
       <div ref={reportRef} className="flex flex-col bg-background">
-      {/* Report header */}
-      <header data-pdf-block className="border-b border-border bg-card">
-        <div className="flex flex-col items-center gap-2 px-4 py-6 text-center lg:px-8">
-          <img src={logoPdf} alt="Logo institucional" className="h-14 w-auto object-contain" />
-          <h1 className="text-2xl font-extrabold uppercase tracking-tight text-[hsl(219,52%,30%)] sm:text-3xl">
-            Boletim de Não Conformidades
-          </h1>
-          <p className="text-base font-bold text-[hsl(219,52%,30%)] sm:text-lg">
-            Período: {periodLabel}
-            {!isGeral && (
-              <span className="ml-3">Setor: {selectedSector}</span>
-            )}
-          </p>
-        </div>
-        <div className="h-1.5 w-full bg-[hsl(24,90%,52%)]" />
-      </header>
-
-      {/* Content */}
-      <main className="flex-1 space-y-6 p-4 pb-6 lg:p-8 lg:pb-6">
-        {isGeral ? (
-          <>
-            <p data-html2canvas-ignore className="text-lg font-bold text-foreground">Boletim Geral</p>
-
-            {/* KPI cards */}
-            <div data-html2canvas-ignore className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {kpis.map((c) => (
-                <Card key={c.label} className="animate-fade-in">
-                  <CardContent className="flex items-start gap-3 p-4">
-                    <div className="rounded-lg bg-accent p-2.5">
-                      <c.icon className="h-5 w-5 text-primary" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-medium text-muted-foreground">{c.label}</p>
-                      <p className="mt-1 truncate text-lg font-bold text-foreground" title={c.value}>
-                        {c.value}
-                      </p>
-                      {c.subtitle && (
-                        <p className="mt-0.5 text-xs text-muted-foreground">{c.subtitle}</p>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-
-            {/* Four charts */}
-            <div data-pdf-grid className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-              <div data-pdf-block>
-                <NotificationsByMonthChart
-                  data={byMonth}
-                  highlightMonth={selectedMonthOption?.month ?? null}
-                />
-              </div>
-              <div data-pdf-block>
-                <VerticalCountChart
-                  title="Número de quebras de interações de processo RECEBIDAS por setor"
-                  data={recebidas}
-                  color={BOLETIM_COLORS.red}
-                />
-              </div>
-              <div data-pdf-block>
-                <HorizontalCountChart
-                  title="Quebras de interações de processo mais notificadas — Geral"
-                  data={topInter}
-                  color={BOLETIM_COLORS.red}
-                />
-              </div>
-              <div data-pdf-block>
-                <VerticalCountChart
-                  title="Número de quebras de interações de processo REALIZADAS por setor notificante"
-                  data={realizadas}
-                  color={BOLETIM_COLORS.olive}
-                />
-              </div>
-            </div>
-          </>
-        ) : !setorHasData ? (
-          <EmptyFilterState />
-        ) : (
-          <div data-pdf-grid className="grid grid-cols-1 gap-6">
-            <div data-pdf-block>
-              <TotalBarChart
-                title="Número de notificações de não conformidade realizadas pelo setor"
-                total={setorRealizadasTotal}
-              />
-            </div>
-            <div data-pdf-block>
-              <HorizontalCountChart
-                title="Quebras de interações de processo mais recebidas pelo setor"
-                data={setorRecebidas}
-                color={BOLETIM_COLORS.red}
-              />
+        {/* Report header */}
+        <header data-pdf-block className="border-b border-border bg-card">
+          <div className={`flex flex-col items-center px-4 text-center lg:px-8 ${isGeral ? "gap-2 py-3" : "gap-3 py-6"}`}>
+            <img
+              src={logoPdf}
+              alt="Logo institucional"
+              className={`w-auto object-contain ${isGeral ? "h-11" : "h-16"}`}
+            />
+            <h1
+              className={`font-extrabold uppercase tracking-tight ${isGeral ? "text-2xl sm:text-3xl" : "text-3xl sm:text-4xl lg:text-5xl"}`}
+              style={{ color: BOLETIM_COLORS.navy }}
+            >
+              Boletim de Não Conformidades
+            </h1>
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <span
+                className={`rounded-full font-bold ${isGeral ? "px-3 py-1 text-base" : "px-4 py-1.5 text-xl"}`}
+                style={{ color: BOLETIM_COLORS.navy, backgroundColor: PILL_BG }}
+              >
+                Período: {periodLabel}
+              </span>
+              {!isGeral && (
+                <span
+                  className="rounded-full px-4 py-1.5 text-xl font-bold"
+                  style={{ color: BOLETIM_COLORS.navy, backgroundColor: PILL_BG }}
+                >
+                  Setor: {selectedSector}
+                </span>
+              )}
             </div>
           </div>
-        )}
-      </main>
+          <div className="h-1.5 w-full" style={{ backgroundColor: BOLETIM_COLORS.orange }} />
+        </header>
 
-      {/* Footer */}
-      <footer data-pdf-block className="border-t border-border bg-card px-4 py-3 lg:px-8">
-        <p className="text-[11px] leading-snug text-muted-foreground">{FOOTER_TEXT}</p>
-        <p className="mt-1 text-[11px] leading-snug text-muted-foreground">{FOOTER_NOTE}</p>
-        <p className="mt-2 text-[11px] font-medium text-muted-foreground">
-          Fonte: Interact, {period?.year ?? new Date().getFullYear()}. · Atualizado em{" "}
-          {new Date().toLocaleDateString("pt-BR")}.
-        </p>
-      </footer>
+        {/* Content */}
+        <main className={`flex-1 ${isGeral ? "space-y-3 p-3 lg:p-4" : "space-y-6 p-4 pb-6 lg:p-8 lg:pb-6"}`}>
+          {isGeral ? (
+            <>
+              <p data-html2canvas-ignore className="text-lg font-bold text-foreground">Boletim Geral</p>
+
+              {/* KPI cards */}
+              <div data-html2canvas-ignore className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {kpis.map((c) => (
+                  <Card key={c.label} className="animate-fade-in overflow-hidden border-border/60 shadow-sm">
+                    <div className="h-1 w-full" style={{ backgroundColor: c.accent }} />
+                    <CardContent className="flex items-start gap-3 p-4">
+                      <div className="rounded-lg p-2.5" style={{ backgroundColor: tint(c.accent, 0.12) }}>
+                        <c.icon className="h-5 w-5" style={{ color: c.accent }} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-muted-foreground">{c.label}</p>
+                        <p className="mt-1 truncate text-lg font-bold text-foreground" title={c.value}>
+                          {c.value}
+                        </p>
+                        {c.subtitle && (
+                          <p className="mt-0.5 text-xs text-muted-foreground">{c.subtitle}</p>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              {/* Four charts */}
+              <div data-pdf-grid data-pdf-compact className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+                <div data-pdf-block>
+                  <NotificationsByMonthChart
+                    data={byMonth}
+                    highlightMonth={selectedMonthOption?.month ?? null}
+                  />
+                </div>
+                <div data-pdf-block>
+                  <VerticalCountChart
+                    title="Número de quebras de interações de processo RECEBIDAS por setor"
+                    data={recebidas}
+                    color={BOLETIM_COLORS.red}
+                  />
+                </div>
+                <div data-pdf-block>
+                  <HorizontalCountChart
+                    title="Quebras de interações de processo mais notificadas — Geral"
+                    data={topInter}
+                    color={BOLETIM_COLORS.red}
+                    labelMax={30}
+                    yWidth={220}
+                  />
+                </div>
+                <div data-pdf-block>
+                  <VerticalCountChart
+                    title="Número de quebras de interações de processo REALIZADAS por setor notificante"
+                    data={realizadas}
+                    color={BOLETIM_COLORS.olive}
+                  />
+                </div>
+              </div>
+            </>
+          ) : !setorHasData ? (
+            <EmptyFilterState />
+          ) : (
+            <div className="space-y-6">
+              {/* Linha 1: notificações por mês (Geral) + totais recebidas/realizadas */}
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
+                <div data-pdf-block className="lg:col-span-2">
+                  <NotificationsByMonthChart
+                    data={byMonth}
+                    highlightMonth={selectedMonthOption?.month ?? null}
+                  />
+                </div>
+                <div data-pdf-block>
+                  <CountCard
+                    title="Número de notificações de não conformidade recebidas pelo setor"
+                    value={setorRecebidasTotal}
+                    color={BOLETIM_COLORS.red}
+                  />
+                </div>
+                <div data-pdf-block>
+                  <CountCard
+                    title="Número de notificações de não conformidade realizadas pelo setor"
+                    value={setorRealizadasTotal}
+                    color={BOLETIM_COLORS.navy}
+                  />
+                </div>
+              </div>
+
+              {/* Linha 2: quebras de interações recebidas / realizadas */}
+              <div data-pdf-grid className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                <div data-pdf-block>
+                  <HorizontalCountChart
+                    title="Quebras de interações de processo mais recebidas pelo setor"
+                    data={setorRecebidas}
+                    color={BOLETIM_COLORS.red}
+                  />
+                </div>
+                <div data-pdf-block>
+                  <HorizontalCountChart
+                    title="Quebras de interações de processo mais realizadas pelo setor"
+                    data={setorRealizadas}
+                    color={BOLETIM_COLORS.navy}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </main>
+
+        {/* Footer */}
+        <footer data-pdf-block className="border-t border-border bg-card">
+          <div className="px-4 py-4 lg:px-8">
+            <p className="text-[11px] font-medium leading-snug text-muted-foreground">{FOOTER_TEXT}</p>
+            <p className="mt-2 text-[11px] font-semibold text-muted-foreground">
+              Fonte: Interact, {period?.year ?? new Date().getFullYear()}
+            </p>
+          </div>
+          <div className="px-4 py-3 text-center" style={{ backgroundColor: BOLETIM_COLORS.navy }}>
+            <p className="text-sm font-bold uppercase tracking-wide text-white">
+              Núcleo de Qualidade e Segurança do Paciente
+            </p>
+          </div>
+        </footer>
       </div>
     </div>
   );
