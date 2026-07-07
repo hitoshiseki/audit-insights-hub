@@ -1,5 +1,6 @@
 import Papa from "papaparse";
 import { parse as parseDate } from "date-fns";
+import { toCsvParseInput } from "./spreadsheet";
 import type {
   ClinicalAuditRow,
   ClinicalParsedQuestion,
@@ -62,15 +63,16 @@ function parseBrDate (dateStr: string): Date {
   return new Date();
 }
 
-export function parseClinicalCSV (
+export async function parseClinicalCSV (
   file: File
 ): Promise<{ rows: ClinicalAuditRow[]; questions: ClinicalParsedQuestion[] }> {
+  const input = await toCsvParseInput(file);
   return new Promise((resolve, reject) => {
-    Papa.parse(file, {
+    Papa.parse(input, {
       header: true,
       skipEmptyLines: true,
       transformHeader: (h) => h.trim(),
-      complete (results) {
+      complete (results: Papa.ParseResult<Record<string, string>>) {
         const headers = results.meta.fields || [];
 
         const questionHeaders = headers.filter(

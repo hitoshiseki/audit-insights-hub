@@ -4,9 +4,18 @@ import type {
   BoletimRow,
   CountItem,
   MonthCount,
+  MonthOption,
   BoletimPeriod,
   BoletimMetrics,
 } from "@/types/boletim";
+
+/** Sentinel value for the "all months" option in the month filter. */
+export const ALL_MONTHS = "__all__";
+
+/** year-month key ("2026-06") used as the filter value for a row's date. */
+function monthKey (d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
 
 /** Capitalizes the first letter (date-fns returns "junho/2026" lowercase). */
 function capitalize (s: string): string {
@@ -101,6 +110,31 @@ export function interacoesRecebidasPeloSetor (
 /** Total de notificações realizadas por um setor (como notificante). */
 export function totalRealizadasPeloSetor (rows: BoletimRow[], setor: string): number {
   return rows.filter((r) => r.setorNotificante === setor).length;
+}
+
+/** Distinct months present in the data, sorted chronologically. */
+export function collectMonths (rows: BoletimRow[]): MonthOption[] {
+  const seen = new Map<string, MonthOption>();
+  for (const r of rows) {
+    const key = monthKey(r.createdAt);
+    if (!seen.has(key)) {
+      seen.set(key, {
+        year: r.createdAt.getFullYear(),
+        month: r.createdAt.getMonth(),
+        value: key,
+        label: capitalize(format(r.createdAt, "MMMM/yyyy", { locale: ptBR })),
+      });
+    }
+  }
+  return Array.from(seen.values()).sort(
+    (a, b) => a.year - b.year || a.month - b.month
+  );
+}
+
+/** Filters rows to the selected year-month; returns all when ALL_MONTHS. */
+export function filterByMonth (rows: BoletimRow[], value: string): BoletimRow[] {
+  if (!value || value === ALL_MONTHS) return rows;
+  return rows.filter((r) => monthKey(r.createdAt) === value);
 }
 
 /** Sorted distinct sectors from both notificado and notificante columns. */

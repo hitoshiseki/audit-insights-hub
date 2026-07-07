@@ -1,5 +1,6 @@
 import Papa from "papaparse";
 import { parse as parseDate } from "date-fns";
+import { toCsvParseInput } from "./spreadsheet";
 import type { BoletimRow } from "@/types/boletim";
 
 // Interações that represent "no formalized process flow" → grouped as "Outros"
@@ -33,15 +34,16 @@ function normalizeInteracao (value: string): string {
   return trimmed;
 }
 
-export function parseBoletimCSV (
+export async function parseBoletimCSV (
   file: File
 ): Promise<{ rows: BoletimRow[] }> {
+  const input = await toCsvParseInput(file);
   return new Promise((resolve, reject) => {
-    Papa.parse(file, {
+    Papa.parse(input, {
       header: true,
       skipEmptyLines: true,
       transformHeader: (h) => h.trim(),
-      complete (results) {
+      complete (results: Papa.ParseResult<Record<string, string>>) {
         const headers = results.meta.fields || [];
 
         const createdCol = findColumnByName(headers, "Criado em");

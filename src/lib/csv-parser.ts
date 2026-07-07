@@ -1,6 +1,7 @@
 import Papa from "papaparse";
 import { parse as parseDate } from "date-fns";
 import type { AuditRow, ParsedQuestion, ResponseValue } from "@/types/audit";
+import { toCsvParseInput } from "./spreadsheet";
 
 const VALID_RESPONSES: string[] = ["CONFORME", "NÃO CONFORME", "NÃO SE APLICA"];
 
@@ -55,12 +56,13 @@ function parseBrDate (dateStr: string): Date {
   return new Date();
 }
 
-export function parseCSV (file: File): Promise<{ rows: AuditRow[]; questions: ParsedQuestion[] }> {
+export async function parseCSV (file: File): Promise<{ rows: AuditRow[]; questions: ParsedQuestion[] }> {
+  const input = await toCsvParseInput(file);
   return new Promise((resolve, reject) => {
-    Papa.parse(file, {
+    Papa.parse(input, {
       header: true,
       skipEmptyLines: true,
-      complete (results) {
+      complete (results: Papa.ParseResult<Record<string, string>>) {
         const headers = results.meta.fields || [];
         const questionHeaders = headers.filter(
           (h) => !META_COLUMNS.includes(h) && QUESTION_PATTERN.test(h)

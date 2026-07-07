@@ -23,6 +23,14 @@ export interface MonthCount {
   count: number;
 }
 
+/** One selectable month present in the loaded data (for the month filter). */
+export interface MonthOption {
+  year: number;
+  month: number;     // 0-11
+  value: string;     // "2026-06" (year-month key, "__all__" reserved for "all")
+  label: string;     // "Junho/2026"
+}
+
 /** Detected reporting period (most frequent month/year of "Criado em"). */
 export interface BoletimPeriod {
   month: number;     // 0-11

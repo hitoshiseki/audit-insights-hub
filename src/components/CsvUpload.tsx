@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import { Upload, FileText, X, AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SPREADSHEET_ACCEPT, hasSpreadsheetExt } from "@/lib/spreadsheet";
 import clsx from "clsx";
 
 interface CsvUploadProps {
@@ -16,7 +17,7 @@ export function CsvUpload({ onFileLoaded, isLoading, fileName, error }: CsvUploa
 
   const handleFile = useCallback(
     (file: File) => {
-      if (!file.name.endsWith(".csv")) {
+      if (!hasSpreadsheetExt(file.name)) {
         return;
       }
       onFileLoaded(file);
@@ -63,7 +64,7 @@ export function CsvUpload({ onFileLoaded, isLoading, fileName, error }: CsvUploa
         >
           <Upload className="h-3 w-3" />
         </Button>
-        <input ref={inputRef} type="file" accept=".csv" className="hidden" onChange={onInputChange} />
+        <input ref={inputRef} type="file" accept={SPREADSHEET_ACCEPT} className="hidden" onChange={onInputChange} />
       </div>
     );
   }
@@ -85,18 +86,18 @@ export function CsvUpload({ onFileLoaded, isLoading, fileName, error }: CsvUploa
         {isLoading ? (
           <div className="flex flex-col items-center gap-2">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="text-sm text-muted-foreground">Processando CSV...</p>
+            <p className="text-sm text-muted-foreground">Processando arquivo...</p>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2">
             <Upload className="h-8 w-8 text-muted-foreground" />
             <p className="text-sm font-medium text-foreground">
-              Arraste um arquivo CSV ou clique para selecionar
+              Arraste um arquivo (CSV, XLS ou XLSX) ou clique para selecionar
             </p>
-            <p className="text-xs text-muted-foreground">Apenas arquivos .csv são aceitos</p>
+            <p className="text-xs text-muted-foreground">Aceita arquivos .csv, .xls e .xlsx</p>
           </div>
         )}
-        <input ref={inputRef} type="file" accept=".csv" className="hidden" onChange={onInputChange} />
+        <input ref={inputRef} type="file" accept={SPREADSHEET_ACCEPT} className="hidden" onChange={onInputChange} />
       </div>
       {error && (
         <div className="mt-2 flex items-center gap-2 text-sm text-destructive">

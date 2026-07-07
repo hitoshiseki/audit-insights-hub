@@ -25,6 +25,9 @@ import {
   topInteracoes,
   computeBoletimMetrics,
   collectSectors,
+  collectMonths,
+  filterByMonth,
+  ALL_MONTHS,
   interacoesRecebidasPeloSetor,
   totalRealizadasPeloSetor,
 } from "@/lib/aggregators-boletim";
@@ -56,44 +59,58 @@ export default function BoletimDashboard () {
   const isLoaded = boletim !== null;
   const fileName = boletim?.fileName ?? "";
 
-  const { selectedSector, setSector } = useDashboardFilters();
+  const { searchParams, setParam, selectedSector, setSector } = useDashboardFilters();
   const isGeral = !selectedSector || selectedSector === "__all__";
 
+  const selectedMonth = searchParams.get("month") || ALL_MONTHS;
+  const monthOptions = useMemo(() => collectMonths(rows), [rows]);
+  const selectedMonthOption = useMemo(
+    () => monthOptions.find((m) => m.value === selectedMonth) ?? null,
+    [monthOptions, selectedMonth]
+  );
+
+  // Month filter applies to every KPI/chart except the "por mês" bar chart,
+  // which always spans the full year (see `byMonth` below).
+  const filteredRows = useMemo(
+    () => filterByMonth(rows, selectedMonth),
+    [rows, selectedMonth]
+  );
+
   const period = useMemo(() => detectPeriod(rows), [rows]);
+  const year = period?.year ?? new Date().getFullYear();
+  const periodLabel = selectedMonthOption ? selectedMonthOption.label : `Ano ${year}`;
   const sectors = useMemo(() => collectSectors(rows), [rows]);
   const sectorCounts = useMemo(() => {
     const map = new Map<string, number>();
-    for (const r of rows) {
+    for (const r of filteredRows) {
       if (r.setorNotificado) map.set(r.setorNotificado, (map.get(r.setorNotificado) || 0) + 1);
       if (r.setorNotificante && r.setorNotificante !== r.setorNotificado) {
         map.set(r.setorNotificante, (map.get(r.setorNotificante) || 0) + 1);
       }
     }
     return map;
-  }, [rows]);
+  }, [filteredRows]);
 
-  // ── Geral aggregations ──
-  const metrics = useMemo(() => computeBoletimMetrics(rows), [rows]);
-  const byMonth = useMemo(
-    () => notificationsByMonth(rows, period?.year ?? new Date().getFullYear()),
-    [rows, period]
-  );
-  const recebidas = useMemo(() => quebrasRecebidasPorSetor(rows), [rows]);
-  const realizadas = useMemo(() => quebrasRealizadasPorSetor(rows), [rows]);
-  const topInter = useMemo(() => topInteracoes(rows, 12), [rows]);
+  // ── Geral aggregations (respect the month filter) ──
+  const metrics = useMemo(() => computeBoletimMetrics(filteredRows), [filteredRows]);
+  // Always full year; the selected month is only highlighted, not filtered out.
+  const byMonth = useMemo(() => notificationsByMonth(rows, year), [rows, year]);
+  const recebidas = useMemo(() => quebrasRecebidasPorSetor(filteredRows), [filteredRows]);
+  const realizadas = useMemo(() => quebrasRealizadasPorSetor(filteredRows), [filteredRows]);
+  const topInter = useMemo(() => topInteracoes(filteredRows, 12), [filteredRows]);
 
-  // ── Por-setor aggregations ──
+  // ── Por-setor aggregations (respect the month filter) ──
   const setorRecebidas = useMemo(
-    () => (isGeral ? [] : interacoesRecebidasPeloSetor(rows, selectedSector, 12)),
-    [rows, selectedSector, isGeral]
+    () => (isGeral ? [] : interacoesRecebidasPeloSetor(filteredRows, selectedSector, 12)),
+    [filteredRows, selectedSector, isGeral]
   );
   const setorRealizadasTotal = useMemo(
-    () => (isGeral ? 0 : totalRealizadasPeloSetor(rows, selectedSector)),
-    [rows, selectedSector, isGeral]
+    () => (isGeral ? 0 : totalRealizadasPeloSetor(filteredRows, selectedSector)),
+    [filteredRows, selectedSector, isGeral]
   );
   const setorHasData = useMemo(
-    () => !isGeral && rows.some((r) => r.setorNotificado === selectedSector || r.setorNotificante === selectedSector),
-    [rows, selectedSector, isGeral]
+    () => !isGeral && filteredRows.some((r) => r.setorNotificado === selectedSector || r.setorNotificante === selectedSector),
+    [filteredRows, selectedSector, isGeral]
   );
 
   const reportRef = useRef<HTMLDivElement>(null);
@@ -104,7 +121,7 @@ export default function BoletimDashboard () {
     setExporting(true);
     try {
       const suffix = isGeral ? "geral" : selectedSector.toLowerCase().replace(/\s+/g, "-");
-      const periodo = period?.label.replace("/", "-") ?? "";
+      const periodo = periodLabel.toLowerCase().replace(/\s+/g, "-").replace(/\//g, "-");
       await exportBoletimToPdf(reportRef.current, `boletim-nao-conformidades-${suffix}-${periodo}.pdf`);
       toast.success("PDF exportado com sucesso!");
     } catch {
@@ -142,8 +159,8 @@ export default function BoletimDashboard () {
           <div>
             <h1 className="text-2xl font-bold text-foreground">Boletim de Não Conformidades</h1>
             <p className="mt-2 text-muted-foreground">
-              Faça upload da exportação <strong>OccurrenceList</strong> (CSV) do Interact para
-              começar a análise
+              Faça upload da exportação <strong>OccurrenceList</strong> (CSV, XLS ou XLSX) do
+              Interact para começar a análise
             </p>
           </div>
           <CsvUpload
@@ -172,6 +189,19 @@ export default function BoletimDashboard () {
           error={boletimError}
         />
         <div className="ml-auto flex items-center gap-3">
+          <Select value={selectedMonth} onValueChange={(v) => setParam("month", v)}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Ano inteiro" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_MONTHS}>Ano inteiro</SelectItem>
+              {monthOptions.map((m) => (
+                <SelectItem key={m.value} value={m.value}>
+                  {m.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Select value={selectedSector} onValueChange={setSector}>
             <SelectTrigger className="w-[280px]">
               <SelectValue placeholder="Geral" />
@@ -180,7 +210,7 @@ export default function BoletimDashboard () {
               <SelectItem value="__all__">
                 <span className="flex w-full items-center justify-between gap-3">
                   <span>Geral</span>
-                  <span className="text-xs text-muted-foreground">{rows.length}</span>
+                  <span className="text-xs text-muted-foreground">{filteredRows.length}</span>
                 </span>
               </SelectItem>
               {sectors.map((s) => (
@@ -216,7 +246,7 @@ export default function BoletimDashboard () {
             Boletim de Não Conformidades
           </h1>
           <p className="text-base font-bold text-[hsl(219,52%,30%)] sm:text-lg">
-            Período: {period?.label ?? "—"}
+            Período: {periodLabel}
             {!isGeral && (
               <span className="ml-3">Setor: {selectedSector}</span>
             )}
@@ -254,9 +284,12 @@ export default function BoletimDashboard () {
             </div>
 
             {/* Four charts */}
-            <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+            <div data-pdf-grid className="grid grid-cols-1 gap-6 xl:grid-cols-2">
               <div data-pdf-block>
-                <NotificationsByMonthChart data={byMonth} />
+                <NotificationsByMonthChart
+                  data={byMonth}
+                  highlightMonth={selectedMonthOption?.month ?? null}
+                />
               </div>
               <div data-pdf-block>
                 <VerticalCountChart
@@ -284,7 +317,7 @@ export default function BoletimDashboard () {
         ) : !setorHasData ? (
           <EmptyFilterState />
         ) : (
-          <div className="grid grid-cols-1 gap-6">
+          <div data-pdf-grid className="grid grid-cols-1 gap-6">
             <div data-pdf-block>
               <TotalBarChart
                 title="Número de notificações de não conformidade realizadas pelo setor"
@@ -307,7 +340,8 @@ export default function BoletimDashboard () {
         <p className="text-[11px] leading-snug text-muted-foreground">{FOOTER_TEXT}</p>
         <p className="mt-1 text-[11px] leading-snug text-muted-foreground">{FOOTER_NOTE}</p>
         <p className="mt-2 text-[11px] font-medium text-muted-foreground">
-          Fonte: Interact, {period?.year ?? new Date().getFullYear()}.
+          Fonte: Interact, {period?.year ?? new Date().getFullYear()}. · Atualizado em{" "}
+          {new Date().toLocaleDateString("pt-BR")}.
         </p>
       </footer>
       </div>
