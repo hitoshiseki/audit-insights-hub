@@ -233,12 +233,25 @@ interface VerticalCountChartProps {
 }
 
 export function VerticalCountChart ({ title, data, color }: VerticalCountChartProps) {
+  // Show full X labels rotated -90 (vertical). A vertical label's footprint
+  // height ≈ its char count × ~6px at fontSize 10. Reserve that as the X-axis
+  // height; Recharts subtracts it from the plot area, shrinking the Y-axis
+  // height to match. Clamp so short labels don't waste space and long ones stay
+  // readable.
+  const X_FONT = 10;
+  // Reserve the plotting band separately from the X-axis band, then size the
+  // whole chart as their sum. This keeps the bars at a fixed, readable height
+  // (never collapsing to 0) while the X-axis grows to fit full vertical labels.
+  const PLOT_HEIGHT = 200;
+  const longestChars = (data ?? []).reduce((max, d) => Math.max(max, d.label.length), 0);
+  const xHeight = Math.min(190, Math.max(70, Math.round(longestChars * X_FONT * 0.62) + 12));
+  const totalHeight = PLOT_HEIGHT + xHeight;
   return (
     <ChartShell title={title} accent={color}>
       <CardContent>
-        <div data-chart-box className="aspect-[16/9] min-h-[320px] w-full">
+        <div data-chart-box className="w-full" style={{ height: totalHeight }}>
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} margin={{ top: 14, right: 8, bottom: 58, left: -16 }}>
+            <BarChart data={data} margin={{ top: 14, right: 8, bottom: 8, left: -16 }}>
               {chartGradients()}
               <CartesianGrid vertical={false} stroke={GRID_STROKE} strokeOpacity={0.6} />
               <XAxis
@@ -248,9 +261,8 @@ export function VerticalCountChart ({ title, data, color }: VerticalCountChartPr
                 interval={0}
                 angle={-90}
                 textAnchor="end"
-                height={58}
-                tick={{ fontSize: 10, fill: "hsl(var(--foreground))" }}
-                tickFormatter={(v: string) => truncate(v, 16)}
+                height={xHeight}
+                tick={{ fontSize: X_FONT, fill: "hsl(var(--foreground))" }}
               />
               <YAxis
                 axisLine={false}
@@ -284,6 +296,8 @@ interface HorizontalCountChartProps {
   labelMax?: number;
   /** Width reserved for the Y-axis (label column) in px. */
   yWidth?: number;
+  /** Show the full Y-axis label (word-wrapped, never truncated). */
+  fullLabels?: boolean;
 }
 
 export function HorizontalCountChart ({
@@ -291,9 +305,27 @@ export function HorizontalCountChart ({
   data,
   color,
   labelMax = 44,
-  yWidth = 260,
+  yWidth,
+  fullLabels = false,
 }: HorizontalCountChartProps) {
-  const barHeight = 30;
+  // Full (wrapped) labels read fine in a narrower column at the smaller font, so
+  // reclaim the extra left space for the bars themselves.
+  // When no explicit width, size the column to the widest label actually shown:
+  // labels get truncated at `labelMax`, so the visible length is capped there.
+  // ≈ 0.6em/char at Y_TICK_FONT, + 14px pad, clamped to [80, 260].
+  const YW_MIN = 80;
+  const YW_MAX = 260;
+  const longestChars = data.reduce(
+    (max, d) => Math.max(max, Math.min(d.label.length, labelMax)),
+    0,
+  );
+  const effYWidth =
+    yWidth ??
+    Math.min(YW_MAX, Math.max(YW_MIN, Math.ceil(longestChars * Y_TICK_FONT * 0.6) + 14));
+  // Wrapped full labels need a bit more vertical room per row than a single line.
+  const barHeight = fullLabels ? 40 : 30;
+  // Fatter bars fill the row so there's less empty vertical gap between them.
+  const barSize = fullLabels ? 30 : 22;
   const height = Math.max(220, data.length * barHeight + 40);
   return (
     <ChartShell title={title} accent={color}>
@@ -317,14 +349,18 @@ export function HorizontalCountChart ({
               <YAxis
                 type="category"
                 dataKey="label"
-                width={yWidth}
+                width={effYWidth}
                 axisLine={false}
                 tickLine={false}
                 interval={0}
-                tick={<SingleLineYTick labelMax={labelMax} yWidth={yWidth} />}
+                tick={
+                  fullLabels
+                    ? { fontSize: 10, fontWeight: 'bold', fill: "hsl(var(--foreground))", width: effYWidth + 100 }
+                    : <SingleLineYTick labelMax={labelMax} yWidth={effYWidth} />
+                }
               />
               <Tooltip content={<CountTooltip />} cursor={{ fill: "hsl(var(--accent))", opacity: 0.5 }} />
-              <Bar dataKey="count" fill={gradFill(color, "h")} radius={[0, 4, 4, 0]} maxBarSize={22} isAnimationActive={false}>
+              <Bar dataKey="count" fill={gradFill(color, "h")} radius={[0, 4, 4, 0]} maxBarSize={barSize} isAnimationActive={false}>
                 <LabelList
                   dataKey="count"
                   position="right"
@@ -353,7 +389,7 @@ export function CountCard ({ title, value, color, caption }: CountCardProps) {
   return (
     <ChartShell title={title} accent={color}>
       <CardContent className="flex flex-1 items-center justify-center">
-        <div className="flex min-h-[160px] flex-col items-center justify-center gap-2 text-center">
+        <div className="flex flex-col items-center justify-center gap-2 text-center">
           <span
             className="text-9xl font-extrabold leading-none tracking-tight"
             style={{ color }}

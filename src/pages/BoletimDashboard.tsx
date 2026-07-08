@@ -258,14 +258,14 @@ export default function BoletimDashboard () {
       <div ref={reportRef} className="flex flex-col bg-background">
         {/* Report header */}
         <header data-pdf-block className="border-b border-border bg-card">
-          <div className={`flex flex-col items-center px-4 text-center lg:px-8 ${isGeral ? "gap-2 py-3" : "gap-3 py-6"}`}>
+          <div className="flex flex-col items-center px-4 text-center lg:px-8 gap-2 pb-4 pt-2">
             <img
               src={logoPdf}
               alt="Logo institucional"
               className={`w-auto object-contain ${isGeral ? "h-11" : "h-16"}`}
             />
             <h1
-              className={`font-extrabold uppercase tracking-tight ${isGeral ? "text-2xl sm:text-3xl" : "text-3xl sm:text-4xl lg:text-5xl"}`}
+              className="font-extrabold uppercase tracking-tight text-3xl sm:text-4xl lg:text-5xl"
               style={{ color: BOLETIM_COLORS.navy }}
             >
               Boletim de Não Conformidades
@@ -291,7 +291,7 @@ export default function BoletimDashboard () {
         </header>
 
         {/* Content */}
-        <main className={`flex-1 ${isGeral ? "space-y-3 p-3 lg:p-4" : "space-y-6 p-4 pb-6 lg:p-8 lg:pb-6"}`}>
+        <main className={`flex-1 ${isGeral ? "space-y-2 p-3 lg:p-4" : "space-y-2 p-2 pb-2 lg:p-4 lg:pb-4"}`}>
           {isGeral ? (
             <>
               <p data-html2canvas-ignore className="text-lg font-bold text-foreground">Boletim Geral</p>
@@ -355,9 +355,9 @@ export default function BoletimDashboard () {
           ) : !setorHasData ? (
             <EmptyFilterState />
           ) : (
-            <div className="space-y-6">
+            <div className="space-y-4">
               {/* Linha 1: notificações por mês (Geral) + totais recebidas/realizadas */}
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
+              <div data-pdf-shrink-first data-pdf-compact className="grid grid-cols-1 gap-4 lg:grid-cols-4">
                 <div data-pdf-block className="lg:col-span-2">
                   <NotificationsByMonthChart
                     data={byMonth}
@@ -381,12 +381,13 @@ export default function BoletimDashboard () {
               </div>
 
               {/* Linha 2: quebras de interações recebidas / realizadas */}
-              <div data-pdf-grid className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <div data-pdf-grid className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 <div data-pdf-block>
                   <HorizontalCountChart
                     title="Quebras de interações de processo mais recebidas pelo setor"
                     data={setorRecebidas}
                     color={BOLETIM_COLORS.red}
+                    fullLabels
                   />
                 </div>
                 <div data-pdf-block>
@@ -394,6 +395,7 @@ export default function BoletimDashboard () {
                     title="Quebras de interações de processo mais realizadas pelo setor"
                     data={setorRealizadas}
                     color={BOLETIM_COLORS.navy}
+                    fullLabels
                   />
                 </div>
               </div>
