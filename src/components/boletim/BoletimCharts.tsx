@@ -137,17 +137,19 @@ interface ChartShellProps {
   title: string;
   /** Semantic color of the card (red = recebidas, olive/navy = realizadas…). */
   accent: string;
+  /** When set, renders "(X registros no total)" in smaller muted text below the title. */
+  total?: number;
   className?: string;
   children: ReactNode;
 }
 
-function ChartShell ({ title, accent, className, children }: ChartShellProps) {
+function ChartShell ({ title, accent, total, className, children }: ChartShellProps) {
   return (
     <Card className={cn("flex h-full flex-col overflow-hidden border-border/60 shadow-sm", className)}>
       <div className="h-1.5 w-full shrink-0" style={{ backgroundColor: accent }} />
       <CardHeader className="pb-2 pt-3.5">
         <CardTitle
-          className="flex items-start gap-2.5 text-2xl font-bold uppercase leading-tight tracking-tight"
+          className="flex items-start gap-2.5 text-xl font-bold uppercase leading-tight tracking-tight"
           style={{ color: BOLETIM_COLORS.navy }}
         >
           <span
@@ -155,7 +157,14 @@ function ChartShell ({ title, accent, className, children }: ChartShellProps) {
             className="mt-[7px] h-3 w-3 shrink-0 rounded-[3px]"
             style={{ backgroundColor: accent }}
           />
-          <span>{title}</span>
+          <span>
+            {title}
+            {total != null && (
+              <span className="ml-1.5 text-xs font-normal normal-case tracking-normal text-muted-foreground">
+                ({total} registros no total)
+              </span>
+            )}
+          </span>
         </CardTitle>
       </CardHeader>
       {children}
@@ -176,6 +185,7 @@ export function NotificationsByMonthChart ({
   return (
     <ChartShell
       title="Número de notificações de não conformidade de interação — Geral"
+      total={data.reduce((sum, d) => sum + d.count, 0)}
       accent={BOLETIM_COLORS.navy}
     >
       <CardContent>
@@ -188,7 +198,7 @@ export function NotificationsByMonthChart ({
                 dataKey="label"
                 axisLine={false}
                 tickLine={false}
-                tick={{ ...AXIS_TICK, fontSize: 14 }}
+                tick={{ ...AXIS_TICK, fontSize: 12 }}
                 interval={0}
               />
               <YAxis
@@ -275,11 +285,85 @@ export function VerticalCountChart ({ title, data, color }: VerticalCountChartPr
                 <LabelList
                   dataKey="count"
                   position="top"
-                  style={{ fontSize: 15, fontWeight: 700, fill: "hsl(var(--foreground))" }}
+                  angle={-90}
+                  offset={12}
+                  dx={5}
+                  style={{ fontSize: 10, fontWeight: 700, fill: "hsl(var(--foreground))" }}
                 />
               </Bar>
             </BarChart>
           </ResponsiveContainer>
+        </div>
+      </CardContent>
+    </ChartShell>
+  );
+}
+
+// ── Ranked sector table (alternate to VerticalCountChart) ─────────────────────
+// Same (title, data, color) contract as VerticalCountChart so the two are
+// interchangeable behind a toggle. Renders every sector as a dense row
+// (setor + mini-bar + count) with no rotated labels, so 3-digit counts never
+// overlap. The sorted list is split into two side-by-side columns (4 visual
+// columns total) to use the card's width and keep it short enough for the A4
+// print cell.
+
+interface RankedSectorTableProps {
+  title: string;
+  data: CountItem[];
+  color: string;
+  /** Max sectors shown (data is sorted desc, so the top N). Default: all. */
+  maxRows?: number;
+  /** Number of side-by-side columns to split the list across. Default: 2. */
+  columns?: number;
+  /**
+   * True denominator for the title count and per-row %. Pass the real sector
+   * total (e.g. totalRecebidasPeloSetor) when `data` is a top-N slice, so the
+   * numbers match the KPI card. Defaults to the sum of `data` when omitted.
+   */
+  total?: number;
+}
+
+function SectorRow ({ item, total }: { item: CountItem; total: number }) {
+  const pct = total > 0 ? Math.round((item.count / total) * 100) : 0;
+  return (
+    <div className="grid grid-cols-[1fr_auto] items-center gap-2 py-[3px]">
+      <span
+        className="text-[11px] font-medium leading-tight text-foreground break-words"
+        title={item.label}
+      >
+        {item.label}
+      </span>
+      <span className="text-right text-[11px] font-bold tabular-nums text-foreground whitespace-nowrap">
+        {item.count} <span className="font-normal text-muted-foreground">({pct}%)</span>
+      </span>
+    </div>
+  );
+}
+
+export function RankedSectorTable ({ title, data, color, maxRows, columns = 2, total: totalProp }: RankedSectorTableProps) {
+  const total = totalProp ?? data.reduce((sum, d) => sum + d.count, 0);
+  const rows = maxRows != null ? data.slice(0, maxRows) : data;
+  // Split into `columns` side-by-side stacks, column-major (fill each column
+  // top-to-bottom before the next), so ranking still reads down then across.
+  const cols = Math.max(1, columns);
+  const perCol = Math.ceil(rows.length / cols);
+  const groups = Array.from({ length: cols }, (_, i) => rows.slice(i * perCol, (i + 1) * perCol));
+  return (
+    <ChartShell title={title} total={total} accent={color}>
+      <CardContent>
+        <div data-chart-box className="w-full" style={{ minHeight: 240 }}>
+          <div
+            className="grid gap-x-6"
+            style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+          >
+            {groups.map((col, i) => (
+              <div key={i} className="flex flex-col divide-y divide-border/40">
+                {col.map((item) => (
+                  <SectorRow key={item.label} item={item} total={total} />
+                ))}
+              </div>
+            ))}
+          </div>
         </div>
       </CardContent>
     </ChartShell>

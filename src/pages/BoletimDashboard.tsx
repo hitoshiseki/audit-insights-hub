@@ -36,10 +36,12 @@ import {
 import {
   NotificationsByMonthChart,
   VerticalCountChart,
+  RankedSectorTable,
   HorizontalCountChart,
   CountCard,
   BOLETIM_COLORS,
 } from "@/components/boletim/BoletimCharts";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import logoPdf from "@/assets/logo-pdf.png";
 
 const FOOTER_TEXT =
@@ -48,6 +50,11 @@ const FOOTER_TEXT =
 // Solid light navy for header pills — kept solid (not translucent) so html2canvas-pro
 // paints it reliably in the printed header.
 const PILL_BG = "hsl(219, 45%, 95%)";
+
+// Max sectors listed in the ranked table view (top N by count). Adjust to taste.
+const SECTOR_TABLE_MAX_ROWS = 20;
+// Number of side-by-side columns in the ranked table view.
+const SECTOR_TABLE_COLUMNS = 2;
 
 // Translucent tint of a solid hsl color. Only used on screen-only elements
 // (KPI cards are data-html2canvas-ignore), so hsla is safe here.
@@ -106,6 +113,9 @@ export default function BoletimDashboard () {
   const recebidas = useMemo(() => quebrasRecebidasPorSetor(filteredRows), [filteredRows]);
   const realizadas = useMemo(() => quebrasRealizadasPorSetor(filteredRows), [filteredRows]);
   const topInter = useMemo(() => topInteracoes(filteredRows, 12), [filteredRows]);
+
+  // Toggle: setores por quebra como gráfico de barras (padrão) ou tabela ranqueada.
+  const [sectorView, setSectorView] = useState<"chart" | "table">("table");
 
   // ── Por-setor aggregations (respect the month filter) ──
   const setorRecebidas = useMemo(
@@ -191,6 +201,27 @@ export default function BoletimDashboard () {
       </div>
     );
   }
+
+  // Shared Gráfico ↔ Tabela switch, reused in the Geral and per-setor views.
+  // Screen-only (data-html2canvas-ignore) so it never lands in the PDF.
+  const sectorToggle = (
+    <div data-html2canvas-ignore className="flex justify-end">
+      <ToggleGroup
+        type="single"
+        value={sectorView}
+        onValueChange={(v) => v && setSectorView(v as "chart" | "table")}
+        variant="outline"
+        size="sm"
+      >
+        <ToggleGroupItem value="chart" aria-label="Ver como gráfico">
+          Gráfico
+        </ToggleGroupItem>
+        <ToggleGroupItem value="table" aria-label="Ver como tabela">
+          Tabela
+        </ToggleGroupItem>
+      </ToggleGroup>
+    </div>
+  );
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -291,7 +322,7 @@ export default function BoletimDashboard () {
         </header>
 
         {/* Content */}
-        <main className={`flex-1 ${isGeral ? "space-y-2 p-3 lg:p-4" : "space-y-2 p-2 pb-2 lg:p-4 lg:pb-4"}`}>
+        <main className={`flex-1 ${isGeral ? "space-y-2 p-3 lg:p-2" : "space-y-2 p-2 pb-2 lg:p-2 lg:pb-2"}`}>
           {isGeral ? (
             <>
               <p data-html2canvas-ignore className="text-lg font-bold text-foreground">Boletim Geral</p>
@@ -319,6 +350,9 @@ export default function BoletimDashboard () {
                 ))}
               </div>
 
+              {/* Setores por quebra: alterna entre gráfico de barras e tabela ranqueada. */}
+              {sectorToggle}
+
               {/* Four charts */}
               <div data-pdf-grid data-pdf-compact className="grid grid-cols-1 gap-3 xl:grid-cols-2">
                 <div data-pdf-block>
@@ -328,36 +362,69 @@ export default function BoletimDashboard () {
                   />
                 </div>
                 <div data-pdf-block>
-                  <VerticalCountChart
-                    title="Número de quebras de interações de processo RECEBIDAS por setor"
-                    data={recebidas}
-                    color={BOLETIM_COLORS.red}
-                  />
+                  {sectorView === "chart" ? (
+                    <VerticalCountChart
+                      title={`[TOP 20] Setores que mais receberam notificações de não conformidade — ${periodLabel}`}
+                      data={recebidas}
+                      color={BOLETIM_COLORS.red}
+                    />
+                  ) : (
+                    <RankedSectorTable
+                      title={`[TOP 20] Setores que mais receberam notificações — ${periodLabel}`}
+                      data={recebidas}
+                      color={BOLETIM_COLORS.red}
+                      columns={SECTOR_TABLE_COLUMNS}
+                      maxRows={SECTOR_TABLE_MAX_ROWS}
+                    />
+                  )}
                 </div>
                 <div data-pdf-block>
-                  <HorizontalCountChart
-                    title="Quebras de interações de processo mais notificadas — Geral"
-                    data={topInter}
-                    color={BOLETIM_COLORS.red}
-                    labelMax={30}
-                    yWidth={220}
-                  />
+                  {sectorView === "chart" ? (
+                    <HorizontalCountChart
+                      title={`[TOP 8] Quebras de interações de processo mais notificadas — Geral`}
+                      data={topInter}
+                      color={BOLETIM_COLORS.red}
+                      labelMax={30}
+                      yWidth={220}
+                    />
+                  ) : (
+                    <RankedSectorTable
+                      title={`[TOP 8] Quebras de interações de processo mais notificadas — Geral`}
+                      data={topInter}
+                      color={BOLETIM_COLORS.red}
+                      columns={1}
+                      maxRows={8}
+                      total={metrics.total}
+                    />
+                  )}
                 </div>
                 <div data-pdf-block>
-                  <VerticalCountChart
-                    title="Número de quebras de interações de processo REALIZADAS por setor notificante"
-                    data={realizadas}
-                    color={BOLETIM_COLORS.olive}
-                  />
+                  {sectorView === "chart" ? (
+                    <VerticalCountChart
+                      title={`[TOP 20] Setores que mais realizaram notificações de não conformidade — ${periodLabel}`}
+                      data={realizadas}
+                      color={BOLETIM_COLORS.olive}
+                    />
+                  ) : (
+                    <RankedSectorTable
+                      title={`[TOP 20] Setores que mais realizaram notificações — ${periodLabel}`}
+                      data={realizadas}
+                      color={BOLETIM_COLORS.olive}
+                      columns={SECTOR_TABLE_COLUMNS}
+                      maxRows={SECTOR_TABLE_MAX_ROWS}
+                    />
+                  )}
                 </div>
               </div>
             </>
           ) : !setorHasData ? (
             <EmptyFilterState />
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-2">
+              {sectorToggle}
+
               {/* Linha 1: notificações por mês (Geral) + totais recebidas/realizadas */}
-              <div data-pdf-shrink-first data-pdf-compact className="grid grid-cols-1 gap-4 lg:grid-cols-4">
+              <div data-pdf-shrink-first data-pdf-compact className="grid grid-cols-1 gap-2 lg:grid-cols-4">
                 <div data-pdf-block className="lg:col-span-2">
                   <NotificationsByMonthChart
                     data={byMonth}
@@ -381,22 +448,44 @@ export default function BoletimDashboard () {
               </div>
 
               {/* Linha 2: quebras de interações recebidas / realizadas */}
-              <div data-pdf-grid className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <div data-pdf-grid className="grid grid-cols-1 gap-2 lg:grid-cols-2">
                 <div data-pdf-block>
-                  <HorizontalCountChart
-                    title="Quebras de interações de processo mais recebidas pelo setor"
-                    data={setorRecebidas}
-                    color={BOLETIM_COLORS.red}
-                    fullLabels
-                  />
+                  {sectorView === "chart" ? (
+                    <HorizontalCountChart
+                      title={`Quebras de interações de processo mais recebidas pelo setor`}
+                      data={setorRecebidas}
+                      color={BOLETIM_COLORS.red}
+                      fullLabels
+                    />
+                  ) : (
+                    <RankedSectorTable
+                      title={`[TOP 8] Quebras de interações de processo mais recebidas pelo setor`}
+                      data={setorRecebidas}
+                      color={BOLETIM_COLORS.red}
+                      columns={1}
+                      maxRows={8}
+                      total={setorRecebidasTotal}
+                    />
+                  )}
                 </div>
                 <div data-pdf-block>
-                  <HorizontalCountChart
-                    title="Quebras de interações de processo mais realizadas pelo setor"
-                    data={setorRealizadas}
-                    color={BOLETIM_COLORS.navy}
-                    fullLabels
-                  />
+                  {sectorView === "chart" ? (
+                    <HorizontalCountChart
+                      title="Quebras de interações de processo mais realizadas pelo setor"
+                      data={setorRealizadas}
+                      color={BOLETIM_COLORS.navy}
+                      fullLabels
+                    />
+                  ) : (
+                    <RankedSectorTable
+                      title={`[TOP 8] Quebras de interações de processo mais realizadas pelo setor`}
+                      data={setorRealizadas}
+                      color={BOLETIM_COLORS.navy}
+                      columns={1}
+                      maxRows={8}
+                      total={setorRealizadasTotal}
+                    />
+                  )}
                 </div>
               </div>
             </div>
