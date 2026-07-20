@@ -214,7 +214,7 @@ export function AcoesMelhoriaBox ({
   onChange: (v: string) => void;
 }) {
   return (
-    <ChartShell title={title} accent={BOLETIM_COLORS.navy}>
+    <ChartShell title={title} accent={BOLETIM_COLORS.green}>
       <CardContent>
         <div
           role="textbox"
@@ -223,7 +223,7 @@ export function AcoesMelhoriaBox ({
           contentEditable
           suppressContentEditableWarning
           onInput={(e) => onChange((e.currentTarget as HTMLDivElement).innerText)}
-          className="min-h-[80px] w-full whitespace-pre-wrap rounded-md border border-dashed border-border/70 p-3 text-sm leading-relaxed text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+          className="min-h-[60px] w-full whitespace-pre-wrap rounded-md border border-dashed border-border/70 p-3 text-sm leading-relaxed text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
           // Sync from state without wiping the caret: only write when it differs
           // from the DOM (i.e. on load / filter change, not on every keystroke).
           ref={(el) => {

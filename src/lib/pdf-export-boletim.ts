@@ -6,11 +6,23 @@ import html2canvas from "html2canvas-pro";
 // into a tall single column on narrow screens.
 const CAPTURE_W = 1500;
 
+// Altura fixa (px) de cada linha visual do relatório. É a altura TOTAL da linha
+// (card inteiro: barra + cabeçalho + conteúdo), não só a área de plotagem. Ajuste
+// à mão — a página se encaixa por proporção, sem distorcer, então esses números
+// são o controle direto do layout (não há mais cálculo automático).
+const GERAL_ROW_1_HEIGHT = 363;     // Geral: mês + setores recebidas
+const GERAL_ROW_2_HEIGHT = 363;     // Geral: quebras + setores realizadas
+const SETORIAL_ROW_1_HEIGHT = 340;  // Setorial: mês + cards recebidas/realizadas
+const SETORIAL_ROW_2_HEIGHT = 360;  // Setorial: quebras recebidas / realizadas
+
 /**
  * Exports the Boletim report to a single landscape A4 page. The whole report
  * element is captured as one image at a fixed wide width (charts forced to a
- * two-column grid) and scaled to fit within the page margins, so every block
- * (header, charts, footer) lands on one page. Elements marked
+ * two-column grid). A altura de cada linha de gráficos é definida à mão pelas
+ * constantes acima (não há solve automático): fixamos a altura na própria grade
+ * (grid-template-rows) e deixamos as células/cards esticarem para preenchê-la —
+ * inclusive os CountCards, que não têm chart-box. A imagem é encaixada no A4
+ * preservando a proporção (centralizada, sem distorcer). Elements marked
  * `[data-html2canvas-ignore]` are skipped by html2canvas.
  */
 export async function exportBoletimToPdf (element: HTMLElement, fileName: string) {
@@ -24,104 +36,54 @@ export async function exportBoletimToPdf (element: HTMLElement, fileName: string
   const prevGridCols = grids.map((g) => g.style.gridTemplateColumns);
   for (const g of grids) g.style.gridTemplateColumns = "repeat(2, minmax(0, 1fr))";
 
-  // Charts inside a `[data-pdf-compact]` block (the Geral 2×2 grid) stack in two
-  // rows, making the capture taller than wide → a portrait sheet. Size each chart so
-  // the whole capture lands in landscape (like the per-setor export, untouched — its
-  // grid has no `data-pdf-compact`), AND so every card in a row ends the SAME total
-  // height. Otherwise cards with taller titles stretch the grid row and the shorter
-  // cards get wasted whitespace below their chart. We therefore give each card the
-  // same target row height and set its chart box = rowH − that card's own chrome
-  // (accent bar + title + padding). Screen layout untouched (restored in `finally`).
-  // No-op when the selector is empty (the per-setor view).
-  // Exact A4-landscape capture box (px): width already fixed to CAPTURE_W, so the
-  // matching height is CAPTURE_W × 210/297. Sizing the DOM to exactly this aspect
-  // (charts absorb the slack) means the canvas is captured at 297:210 and maps 1:1
-  // onto the sheet — no stretching, no white margins, full render quality.
-  const TARGET_H = (CAPTURE_W * 210) / 297; // ≈1060.6px
-  const compactBoxes = Array.from(
-    element.querySelectorAll<HTMLElement>("[data-pdf-compact] [data-chart-box]")
-  );
-  // Charts inside a `[data-pdf-shrink-first]` block give up their space BEFORE the
-  // compact charts do (per-setor: the top month chart shrinks so the two bottom
-  // charts keep their full size). Empty on the Geral export.
-  const shrinkFirstBoxes = Array.from(
-    element.querySelectorAll<HTMLElement>("[data-pdf-shrink-first] [data-chart-box]")
-  );
-  const allBoxes = [...compactBoxes, ...shrinkFirstBoxes];
-  const prevBoxStyle = allBoxes.map((b) => ({ height: b.style.height, minHeight: b.style.minHeight }));
-
   // `[data-html2canvas-ignore]` elements (KPI cards, screen-only labels) are dropped
-  // by html2canvas, so they must NOT count toward the print height budget. Hide them
-  // for the measurement/capture (restored in `finally`) or they inflate the chrome
-  // and squeeze the charts to nothing.
+  // by html2canvas, so hide them for the capture or they inflate the layout.
   const ignored = Array.from(element.querySelectorAll<HTMLElement>("[data-html2canvas-ignore]"));
   const prevIgnoredDisplay = ignored.map((e) => e.style.display);
   for (const e of ignored) e.style.display = "none";
 
-  // Pin the report to the exact A4-landscape box so the capture aspect is precisely
-  // 297:210 (restored in `finally`).
-  const prevHeight = element.style.height;
-  const prevOverflow = element.style.overflow;
-
-  if (shrinkFirstBoxes.length > 0) {
-    // Per-setor: the top chart shrinks first so the bottom charts stay full size.
-    // The top chart shares its grid row with the (taller) KPI count cards, so
-    // measuring it collapsed hides how much it must grow to actually push the page
-    // height — the cards pin the row until the chart overtakes them, leaving white
-    // at the bottom. Instead PROBE it at a large height so it dominates the row;
-    // then `base` = height of everything else (chrome + full-size bottom charts),
-    // and `topH = TARGET_H − base` fills the sheet exactly (absorption included).
-    const MIN_TOP = 200;
-    const MIN_BOTTOM = 140;
-    const PROBE = 4000;
-    const topRows = Math.ceil(shrinkFirstBoxes.length / 2);
-    for (const b of shrinkFirstBoxes) {
-      b.style.height = `${PROBE}px`;
-      b.style.minHeight = "0px";
-    }
-    const base = element.offsetHeight - PROBE * topRows; // forces reflow
-    // No overshoot: natural height must land exactly on TARGET_H so the footer
-    // band (navy "Núcleo de Qualidade") isn't clipped by the overflow:hidden box.
-    let topH = (TARGET_H - base) / topRows;
-
-    if (topH < MIN_TOP) {
-      // Bottom charts too tall: floor the top so it never disappears and reclaim
-      // the deficit by shrinking the bottom charts just enough to fit.
-      const deficit = (MIN_TOP - topH) * topRows;
-      const bottomRows = Math.max(1, Math.ceil(compactBoxes.length / 2));
-      const shrinkPerRow = deficit / bottomRows;
-      for (const b of compactBoxes) {
-        const cur = b.offsetHeight; // current full height
-        b.style.height = `${Math.max(MIN_BOTTOM, cur - shrinkPerRow)}px`;
-        b.style.minHeight = "0px";
-      }
-      topH = MIN_TOP;
-    }
-    for (const b of shrinkFirstBoxes) {
-      b.style.height = `${Math.max(0, topH)}px`;
-      b.style.minHeight = "0px";
-    }
-    element.style.height = `${TARGET_H}px`;
-    element.style.overflow = "hidden";
-  } else if (compactBoxes.length > 0) {
-    // Geral: collapse the plot areas to measure everything else (header, footer,
-    // card headers, paddings) at the forced capture width, then hand every chart the
-    // same leftover height so chrome + charts == TARGET_H. Adapts to header size /
-    // bar count.
-    for (const b of compactBoxes) {
-      b.style.height = "0px";
-      b.style.minHeight = "0px";
-    }
-    const chromeH = element.offsetHeight; // forces reflow
-    const rows = Math.ceil(compactBoxes.length / 2);
-    const perRow = Math.max(0, (TARGET_H - chromeH) / rows);
-    for (const b of compactBoxes) {
-      b.style.height = `${perRow}px`;
-      b.style.minHeight = "0px";
-    }
-    element.style.height = `${TARGET_H}px`;
-    element.style.overflow = "hidden";
+  // A vista setorial é identificada pela linha [data-pdf-shrink-first] (só existe
+  // nela); a Geral não tem nenhuma. Cada vista mapeia seus containers de linha:
+  //   • Geral:    um único [data-pdf-compact] (grade 2×2) → duas alturas.
+  //   • Setorial: Linha 1 = [data-pdf-shrink-first]; Linha 2 = [data-pdf-grid]
+  //     (na vista setorial a grade Geral não é renderizada) → uma altura cada.
+  const isSetorial = !!element.querySelector("[data-pdf-shrink-first]");
+  const rowGroups: { container: HTMLElement; heights: number[] }[] = [];
+  if (isSetorial) {
+    const l1 = element.querySelector<HTMLElement>("[data-pdf-shrink-first]");
+    const l2 = element.querySelector<HTMLElement>("[data-pdf-grid]");
+    if (l1) rowGroups.push({ container: l1, heights: [SETORIAL_ROW_1_HEIGHT] });
+    if (l2) rowGroups.push({ container: l2, heights: [SETORIAL_ROW_2_HEIGHT] });
+  } else {
+    const g = element.querySelector<HTMLElement>("[data-pdf-compact]");
+    if (g) rowGroups.push({ container: g, heights: [GERAL_ROW_1_HEIGHT, GERAL_ROW_2_HEIGHT] });
   }
+
+  // Fixa a altura das linhas na grade de cada container.
+  const containers = rowGroups.map((g) => g.container);
+  const prevContainerRows = containers.map((c) => c.style.gridTemplateRows);
+  rowGroups.forEach(({ container, heights }) => {
+    container.style.gridTemplateRows = heights.map((h) => `${h}px`).join(" ");
+  });
+
+  // Chart-boxes preenchem a célula (altura vem da linha da grade, não deles); o
+  // CardContent que os envolve vira flex-1 para essa altura de 100% resolver.
+  const boxes = rowGroups.flatMap(({ container }) =>
+    Array.from(container.querySelectorAll<HTMLElement>("[data-chart-box]"))
+  );
+  const prevBoxStyle = boxes.map((b) => ({ height: b.style.height, minHeight: b.style.minHeight }));
+  const boxContents = boxes.map((b) => b.parentElement as HTMLElement | null);
+  const prevContentStyle = boxContents.map((c) => (c ? { flex: c.style.flex, minHeight: c.style.minHeight } : null));
+  boxes.forEach((b) => {
+    b.style.height = "100%";
+    b.style.minHeight = "0px";
+  });
+  boxContents.forEach((c) => {
+    if (c) {
+      c.style.flex = "1 1 0%";
+      c.style.minHeight = "0px";
+    }
+  });
 
   try {
     // Ensure webfonts are fully loaded before capturing. If html2canvas snapshots
@@ -140,34 +102,64 @@ export async function exportBoletimToPdf (element: HTMLElement, fileName: string
     // chart re-renders at full cell width before html2canvas snapshots it.
     await new Promise<void>((resolve) => setTimeout(resolve, 120));
 
+    // Sem windowHeight: o html2canvas captura a altura natural do conteúdo (soma
+    // das linhas + chrome), sem cortar.
     const canvas = await html2canvas(element, {
       // Higher scale → sharper text when the report is printed and read from a wall.
       scale: 3,
       backgroundColor: "#ffffff",
       useCORS: true,
       windowWidth: CAPTURE_W,
-      windowHeight: TARGET_H,
     });
     const img = canvas.toDataURL("image/jpeg", 0.95);
 
-    // Single, exact A4 landscape sheet (297×210 mm). The DOM was sized to the A4
-    // aspect above, so the capture is already 297:210 and maps 1:1 onto the full
-    // page — no stretching (quality preserved) and no white margins.
-    const pageW = 297;
-    const pageH = 210;
     const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+    // Encaixa a imagem no A4 preservando a proporção — nunca distorce. Ancorada
+    // EMBAIXO (não centralizada): a faixa branca residual (o conteúdo quase nunca
+    // tem exatamente a proporção do A4) fica no TOPO, onde some contra o cabeçalho
+    // branco (bg-card). Se centralizasse, sobraria uma faixa branca embaixo do
+    // rodapé, visível porque a barra navy do rodapé é escura.
+    const PAGE_W = 297;
+    const PAGE_H = 210;
+    const canvasAspect = canvas.width / canvas.height;
+    let w = PAGE_W;
+    let h = PAGE_W / canvasAspect;
+    let x = 0;
+    let y = PAGE_H - h;
+    if (h > PAGE_H) {
+      h = PAGE_H;
+      w = PAGE_H * canvasAspect;
+      x = (PAGE_W - w) / 2;
+      y = 0;
+    }
+    if (import.meta.env.DEV) {
+      const a4 = PAGE_W / PAGE_H; // 297/210 ≈ 1.4143
+      const idealH = (CAPTURE_W * PAGE_H) / PAGE_W; // altura natural p/ encher o A4
 
-    pdf.addImage(img, "JPEG", 0, 0, pageW, pageH);
+      console.info(
+        `[pdf-boletim] canvas ${canvas.width}×${canvas.height}px aspecto=${canvasAspect.toFixed(3)} ` +
+        `(A4 landscape=${a4.toFixed(3)}) | altura natural=${(canvas.height / 3).toFixed(0)}px ` +
+        `(ideal ${idealH.toFixed(0)}px) | imagem ${w.toFixed(1)}×${h.toFixed(1)}mm de ${PAGE_W}×${PAGE_H} ` +
+        `→ largura ${w >= PAGE_W - 0.5 ? "ENCHE" : "NÃO enche"} o A4`
+      );
+    }
+    pdf.addImage(img, "JPEG", x, y, w, h);
     pdf.save(fileName);
   } finally {
     element.style.width = prevWidth;
     element.style.maxWidth = prevMaxWidth;
-    element.style.height = prevHeight;
-    element.style.overflow = prevOverflow;
     grids.forEach((g, i) => { g.style.gridTemplateColumns = prevGridCols[i]; });
-    allBoxes.forEach((b, i) => {
+    containers.forEach((c, i) => { c.style.gridTemplateRows = prevContainerRows[i]; });
+    boxes.forEach((b, i) => {
       b.style.height = prevBoxStyle[i].height;
       b.style.minHeight = prevBoxStyle[i].minHeight;
+    });
+    boxContents.forEach((c, i) => {
+      const prev = prevContentStyle[i];
+      if (c && prev) {
+        c.style.flex = prev.flex;
+        c.style.minHeight = prev.minHeight;
+      }
     });
     ignored.forEach((e, i) => { e.style.display = prevIgnoredDisplay[i]; });
   }

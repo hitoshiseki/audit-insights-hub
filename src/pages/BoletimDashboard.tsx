@@ -43,6 +43,7 @@ import {
 } from "@/components/boletim/BoletimCharts";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import logoPdf from "@/assets/logo-pdf.png";
+import logoBoletim from "@/assets/logo_boletim_nao_conformidade.png";
 
 const FOOTER_TEXT =
   "A notificação de NÃO CONFORMIDADE deve ser realizada em decorrência do descumprimento de requisitos descritos em normas, procedimentos, manuais, instruções de trabalho que estejam alinhados em contrato e interações de processos entre as áreas. Após a sua notificação, o gestor do setor notificado irá analisar e traçar plano de ação com aprovação da diretoria. O feedback das análises das notificações são acompanhadas pelo gestor do setor notificantes via Interact.";
@@ -289,33 +290,40 @@ export default function BoletimDashboard () {
       <div ref={reportRef} className="flex flex-col bg-background">
         {/* Report header */}
         <header data-pdf-block className="border-b border-border bg-card">
-          <div className="flex flex-col items-center px-4 text-center lg:px-8 gap-2 pb-4 pt-2">
+          <div className="flex items-center gap-4 px-4 lg:px-8 pb-4 pt-2">
             <img
-              src={logoPdf}
-              alt="Logo institucional"
-              className={`w-auto object-contain ${isGeral ? "h-11" : "h-16"}`}
+              src={logoBoletim}
+              alt="Logo Boletim de Não Conformidades"
+              className={`w-auto object-contain h-28`}
             />
-            <h1
-              className="font-extrabold uppercase tracking-tight text-3xl sm:text-4xl lg:text-5xl"
-              style={{ color: BOLETIM_COLORS.navy }}
-            >
-              Boletim de Não Conformidades
-            </h1>
-            <div className="flex flex-wrap items-center justify-center gap-3">
-              <span
-                className={`rounded-full font-bold ${isGeral ? "px-3 py-1 text-base" : "px-4 py-1.5 text-xl"}`}
-                style={{ color: BOLETIM_COLORS.navy, backgroundColor: PILL_BG }}
+            <div className="flex flex-1 flex-col items-center text-center gap-2">
+              <img
+                src={logoPdf}
+                alt="Logo institucional"
+                className={`w-auto object-contain ${isGeral ? "h-11" : "h-16"}`}
+              />
+              <h1
+                className="font-extrabold uppercase tracking-tight text-3xl sm:text-4xl lg:text-5xl"
+                style={{ color: BOLETIM_COLORS.navy }}
               >
-                Período: {periodLabel}
-              </span>
-              {!isGeral && (
+                Boletim de Não Conformidades
+              </h1>
+              <div className="flex flex-wrap items-center justify-center gap-3">
                 <span
-                  className="rounded-full px-4 py-1.5 text-xl font-bold"
+                  className={`rounded-full font-bold ${isGeral ? "px-3 py-1 text-base" : "px-4 py-1.5 text-xl"}`}
                   style={{ color: BOLETIM_COLORS.navy, backgroundColor: PILL_BG }}
                 >
-                  Setor: {selectedSector}
+                  Período: {periodLabel}
                 </span>
-              )}
+                {!isGeral && (
+                  <span
+                    className="rounded-full px-4 py-1.5 text-xl font-bold"
+                    style={{ color: BOLETIM_COLORS.navy, backgroundColor: PILL_BG }}
+                  >
+                    Setor: {selectedSector}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
           <div className="h-1.5 w-full" style={{ backgroundColor: BOLETIM_COLORS.orange }} />

@@ -44,6 +44,7 @@ import {
 } from "@/components/seguranca/SegurancaCharts";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import logoPdf from "@/assets/logo-pdf.png";
+import logoBoletim from "@/assets/logo_boletim_seguranca.png";
 
 // Solid light navy for header pills — kept solid (not translucent) so html2canvas-pro
 // paints it reliably in the printed header.
@@ -305,36 +306,43 @@ export default function SegurancaDashboard () {
       <div ref={reportRef} className="flex flex-col bg-background">
         {/* Report header */}
         <header data-pdf-block className="border-b border-border bg-card">
-          <div className="flex flex-col items-center px-4 text-center lg:px-8 gap-2 pb-4 pt-2">
+          <div className="flex items-center gap-4 px-4 lg:px-8 pb-4 pt-2">
             <img
-              src={logoPdf}
-              alt="Logo institucional"
-              className={`w-auto object-contain ${isGeral ? "h-11" : "h-16"}`}
+              src={logoBoletim}
+              alt="Logo Boletim de Segurança do Paciente"
+              className={`w-auto object-contain h-28`}
             />
-            <h1
-              className="font-extrabold uppercase tracking-tight text-3xl sm:text-4xl lg:text-5xl"
-              style={{ color: SEGURANCA_COLORS.navy }}
-            >
-              Boletim de Segurança do Paciente{!isGeral && " – Setorial"}
-            </h1>
-            <div className="flex flex-wrap items-center justify-center gap-3">
-              <span
-                className={`rounded-full font-bold ${isGeral ? "px-3 py-1 text-base" : "px-4 py-1.5 text-xl"}`}
-                style={{ color: SEGURANCA_COLORS.navy, backgroundColor: PILL_BG }}
+            <div className="flex flex-1 flex-col items-center text-center gap-2">
+              <img
+                src={logoPdf}
+                alt="Logo institucional"
+                className={`w-auto object-contain ${isGeral ? "h-11" : "h-16"}`}
+              />
+              <h1
+                className="font-extrabold uppercase tracking-tight text-3xl sm:text-4xl lg:text-5xl"
+                style={{ color: SEGURANCA_COLORS.navy }}
               >
-                Período: {periodLabel}
-              </span>
-              {!isGeral && (
+                Boletim de Segurança do Paciente
+              </h1>
+              <div className="flex flex-wrap items-center justify-center gap-3">
                 <span
-                  className="rounded-full px-4 py-1.5 text-xl font-bold"
+                  className={`rounded-full font-bold ${isGeral ? "px-3 py-1 text-base" : "px-4 py-1.5 text-xl"}`}
                   style={{ color: SEGURANCA_COLORS.navy, backgroundColor: PILL_BG }}
                 >
-                  Setor: {selectedSector}
+                  Período: {periodLabel}
                 </span>
-              )}
+                {!isGeral && (
+                  <span
+                    className="rounded-full px-4 py-1.5 text-xl font-bold"
+                    style={{ color: SEGURANCA_COLORS.navy, backgroundColor: PILL_BG }}
+                  >
+                    Setor: {selectedSector}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
-          <div className="h-1.5 w-full" style={{ backgroundColor: SEGURANCA_COLORS.orange }} />
+          <div className="h-1.5 w-full" style={{ backgroundColor: SEGURANCA_COLORS.green }} />
         </header>
 
         {/* Content */}
@@ -375,6 +383,7 @@ export default function SegurancaDashboard () {
                     title="Número de notificação de incidentes — Geral"
                     data={byMonth}
                     highlightMonth={selectedMonthOption?.month ?? null}
+                    highlightColor={SEGURANCA_COLORS.green}
                     fill
                   />
                 </div>
@@ -435,6 +444,7 @@ export default function SegurancaDashboard () {
                     title="Número de notificação de incidentes — Geral"
                     data={byMonth}
                     highlightMonth={selectedMonthOption?.month ?? null}
+                    highlightColor={SEGURANCA_COLORS.green}
                     fill
                   />
                 </div>

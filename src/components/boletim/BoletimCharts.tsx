@@ -21,6 +21,7 @@ export const BOLETIM_COLORS = {
   red: "hsl(0, 65%, 45%)",
   olive: "hsl(74, 40%, 34%)",
   orange: "hsl(24, 90%, 52%)",
+  green: "hsl(142, 60%, 36%)",
 } as const;
 
 type BoletimColorKey = keyof typeof BOLETIM_COLORS;
@@ -149,7 +150,7 @@ export function ChartShell ({ title, accent, total, className, children }: Chart
       <div className="h-1.5 w-full shrink-0" style={{ backgroundColor: accent }} />
       <CardHeader className="pb-2 pt-3.5">
         <CardTitle
-          className="flex items-start gap-2.5 text-xl font-bold uppercase leading-tight tracking-tight"
+          className="flex items-start gap-2.5 text-2xl font-bold uppercase leading-tight tracking-tight"
           style={{ color: BOLETIM_COLORS.navy }}
         >
           <span
@@ -177,16 +178,20 @@ export function ChartShell ({ title, accent, total, className, children }: Chart
 export function NotificationsByMonthChart ({
   data,
   highlightMonth = null,
+  highlightColor = BOLETIM_COLORS.orange,
   title = "Número de notificações de não conformidade de interação — Geral",
   fill = false,
 }: {
   data: MonthCount[];
   highlightMonth?: number | null;
+  /** Bar color for the selected month. Only used when a month is selected. */
+  highlightColor?: string;
   title?: string;
   /** Fill the card's full available height (h-full) instead of a fixed 5:2 aspect. */
   fill?: boolean;
 }) {
-  const hasHighlight = highlightMonth !== null;
+  // Only recolor a bar when a month is actually selected; the full-year view
+  // stays entirely navy.
   return (
     <ChartShell
       title={title}
@@ -218,12 +223,11 @@ export function NotificationsByMonthChart ({
               <Tooltip content={<CountTooltip />} cursor={{ fill: "hsl(var(--accent))", opacity: 0.5 }} />
               <Bar dataKey="count" radius={[5, 5, 0, 0]} maxBarSize={40} isAnimationActive={false}>
                 {data.map((entry) => {
-                  const isHighlighted = entry.month === highlightMonth;
+                  const isHighlighted = highlightMonth !== null && entry.month === highlightMonth;
                   return (
                     <Cell
                       key={entry.month}
-                      fill={gradFill(isHighlighted ? BOLETIM_COLORS.orange : BOLETIM_COLORS.navy, "v")}
-                      fillOpacity={hasHighlight && !isHighlighted ? 0.55 : 1}
+                      fill={gradFill(isHighlighted ? highlightColor : BOLETIM_COLORS.navy, "v")}
                     />
                   );
                 })}
@@ -336,7 +340,7 @@ function SectorRow ({ item, total }: { item: CountItem; total: number }) {
   return (
     <div className="grid grid-cols-[1fr_auto] items-center gap-2 py-[3px]">
       <span
-        className="text-[11px] font-medium leading-tight text-foreground break-words"
+        className="text-[14px] font-medium leading-tight text-foreground break-words"
         title={item.label}
       >
         {item.label}
