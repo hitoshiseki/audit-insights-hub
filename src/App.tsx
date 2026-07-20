@@ -12,6 +12,7 @@ import Dashboard from "./pages/Dashboard";
 import ClinicalDashboard from "./pages/ClinicalDashboard";
 import QualitativeDashboard from "./pages/QualitativeDashboard";
 import BoletimDashboard from "./pages/BoletimDashboard";
+import SegurancaDashboard from "./pages/SegurancaDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -34,6 +35,7 @@ const App = () => {
                   <Route path="/clinical" element={<ClinicalDashboard />} />
                   <Route path="/qualitative" element={<QualitativeDashboard />} />
                   <Route path="/boletim" element={<BoletimDashboard />} />
+                  <Route path="/seguranca" element={<SegurancaDashboard />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </AppNavProvider>

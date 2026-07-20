@@ -143,7 +143,7 @@ interface ChartShellProps {
   children: ReactNode;
 }
 
-function ChartShell ({ title, accent, total, className, children }: ChartShellProps) {
+export function ChartShell ({ title, accent, total, className, children }: ChartShellProps) {
   return (
     <Card className={cn("flex h-full flex-col overflow-hidden border-border/60 shadow-sm", className)}>
       <div className="h-1.5 w-full shrink-0" style={{ backgroundColor: accent }} />
@@ -177,19 +177,27 @@ function ChartShell ({ title, accent, total, className, children }: ChartShellPr
 export function NotificationsByMonthChart ({
   data,
   highlightMonth = null,
+  title = "Número de notificações de não conformidade de interação — Geral",
+  fill = false,
 }: {
   data: MonthCount[];
   highlightMonth?: number | null;
+  title?: string;
+  /** Fill the card's full available height (h-full) instead of a fixed 5:2 aspect. */
+  fill?: boolean;
 }) {
   const hasHighlight = highlightMonth !== null;
   return (
     <ChartShell
-      title="Número de notificações de não conformidade de interação — Geral"
+      title={title}
       total={data.reduce((sum, d) => sum + d.count, 0)}
       accent={BOLETIM_COLORS.navy}
     >
-      <CardContent>
-        <div data-chart-box className="aspect-[5/2] min-h-[260px] w-full">
+      <CardContent className={fill ? "flex-1" : undefined}>
+        <div
+          data-chart-box
+          className={fill ? "h-full min-h-[260px] w-full" : "aspect-[5/2] min-h-[260px] w-full"}
+        >
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data} margin={{ top: 20, right: 8, bottom: 4, left: -16 }}>
               {chartGradients()}
@@ -467,15 +475,17 @@ interface CountCardProps {
   color: string;
   /** Optional label shown small below the number (e.g. the single interaction). */
   caption?: string;
+  /** Font-size class for the number. Defaults to the large hero size. */
+  valueClassName?: string;
 }
 
-export function CountCard ({ title, value, color, caption }: CountCardProps) {
+export function CountCard ({ title, value, color, caption, valueClassName = "text-9xl" }: CountCardProps) {
   return (
     <ChartShell title={title} accent={color}>
       <CardContent className="flex flex-1 items-center justify-center">
         <div className="flex flex-col items-center justify-center gap-2 text-center">
           <span
-            className="text-9xl font-extrabold leading-none tracking-tight"
+            className={cn("font-extrabold leading-none tracking-tight", valueClassName)}
             style={{ color }}
           >
             {value.toLocaleString("pt-BR")}

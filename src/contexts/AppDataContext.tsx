@@ -3,10 +3,12 @@ import type { AuditRow, ParsedQuestion } from "@/types/audit";
 import type { ClinicalAuditRow, ClinicalParsedQuestion } from "@/types/clinical-audit";
 import type { QualitativeAuditRow, QualitativeParsedQuestion } from "@/types/qualitative-audit";
 import type { BoletimRow } from "@/types/boletim";
+import type { SegurancaRow } from "@/types/seguranca";
 import { parseCSV } from "@/lib/csv-parser";
 import { parseClinicalCSV } from "@/lib/csv-parser-clinical";
 import { parseQualitativeCSV } from "@/lib/csv-parser-qualitative";
 import { parseBoletimCSV } from "@/lib/csv-parser-boletim";
+import { parseSegurancaCSV } from "@/lib/csv-parser-seguranca";
 
 interface RopsState {
   rows: AuditRow[];
@@ -31,6 +33,11 @@ interface BoletimState {
   fileName: string;
 }
 
+interface SegurancaState {
+  rows: SegurancaRow[];
+  fileName: string;
+}
+
 interface AppDataContextValue {
   rops: RopsState | null;
   ropsLoading: boolean;
@@ -52,6 +59,11 @@ interface AppDataContextValue {
   boletimError: string | null;
   loadBoletim: (file: File) => Promise<void>;
 
+  seguranca: SegurancaState | null;
+  segurancaLoading: boolean;
+  segurancaError: string | null;
+  loadSeguranca: (file: File) => Promise<void>;
+
   clearAllData: () => void;
 }
 
@@ -72,6 +84,10 @@ const AppDataContext = createContext<AppDataContextValue>({
   boletimLoading: false,
   boletimError: null,
   loadBoletim: async () => { },
+  seguranca: null,
+  segurancaLoading: false,
+  segurancaError: null,
+  loadSeguranca: async () => { },
   clearAllData: () => { },
 });
 
@@ -84,6 +100,7 @@ const KEY_ROPS        = "audit-insights-rops";
 const KEY_CLINICAL    = "audit-insights-clinical";
 const KEY_QUALITATIVE = "audit-insights-qualitative";
 const KEY_BOLETIM     = "audit-insights-boletim";
+const KEY_SEGURANCA   = "audit-insights-seguranca";
 
 // ── Serialization helpers ──────────────────────────────────────────────────────
 
@@ -192,6 +209,30 @@ function deserializeBoletim (json: string): BoletimState {
   };
 }
 
+function serializeSeguranca (state: SegurancaState): string {
+  return JSON.stringify({
+    ...state,
+    rows: state.rows.map((r) => ({
+      ...r,
+      notifiedAt: r.notifiedAt.toISOString(),
+    })),
+  });
+}
+
+function deserializeSeguranca (json: string): SegurancaState {
+  const parsed = JSON.parse(json) as {
+    rows: (Omit<SegurancaRow, "notifiedAt"> & { notifiedAt: string })[];
+    fileName: string;
+  };
+  return {
+    ...parsed,
+    rows: parsed.rows.map((r) => ({
+      ...r,
+      notifiedAt: new Date(r.notifiedAt),
+    })),
+  };
+}
+
 // ── Provider ───────────────────────────────────────────────────────────────────
 
 export function AppDataProvider ({ children }: { children: React.ReactNode }) {
@@ -210,6 +251,10 @@ export function AppDataProvider ({ children }: { children: React.ReactNode }) {
   const [boletim, setBoletim] = useState<BoletimState | null>(null);
   const [boletimLoading, setBoletimLoading] = useState(false);
   const [boletimError, setBoletimError] = useState<string | null>(null);
+
+  const [seguranca, setSeguranca] = useState<SegurancaState | null>(null);
+  const [segurancaLoading, setSegurancaLoading] = useState(false);
+  const [segurancaError, setSegurancaError] = useState<string | null>(null);
 
   // Hydrate from localStorage on mount
   useEffect(() => {
@@ -239,6 +284,13 @@ export function AppDataProvider ({ children }: { children: React.ReactNode }) {
       if (boletimJson) setBoletim(deserializeBoletim(boletimJson));
     } catch {
       localStorage.removeItem(KEY_BOLETIM);
+    }
+
+    try {
+      const segurancaJson = localStorage.getItem(KEY_SEGURANCA);
+      if (segurancaJson) setSeguranca(deserializeSeguranca(segurancaJson));
+    } catch {
+      localStorage.removeItem(KEY_SEGURANCA);
     }
   }, []);
 
@@ -322,19 +374,42 @@ export function AppDataProvider ({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const loadSeguranca = useCallback(async (file: File) => {
+    setSegurancaLoading(true);
+    setSegurancaError(null);
+    try {
+      const result = await parseSegurancaCSV(file);
+      const state: SegurancaState = { rows: result.rows, fileName: file.name };
+      setSeguranca(state);
+      try {
+        localStorage.setItem(KEY_SEGURANCA, serializeSeguranca(state));
+      } catch {
+        // Storage quota exceeded — silently ignore
+      }
+    } catch (e) {
+      setSeguranca(null);
+      setSegurancaError(e instanceof Error ? e.message : "Erro ao processar o arquivo CSV. Verifique o formato.");
+    } finally {
+      setSegurancaLoading(false);
+    }
+  }, []);
+
   const clearAllData = useCallback(() => {
     setRops(null);
     setClinical(null);
     setQualitative(null);
     setBoletim(null);
+    setSeguranca(null);
     setRopsError(null);
     setClinicalError(null);
     setQualitativeError(null);
     setBoletimError(null);
+    setSegurancaError(null);
     localStorage.removeItem(KEY_ROPS);
     localStorage.removeItem(KEY_CLINICAL);
     localStorage.removeItem(KEY_QUALITATIVE);
     localStorage.removeItem(KEY_BOLETIM);
+    localStorage.removeItem(KEY_SEGURANCA);
   }, []);
 
   return (
@@ -344,6 +419,7 @@ export function AppDataProvider ({ children }: { children: React.ReactNode }) {
         clinical, clinicalLoading, clinicalError, loadClinical,
         qualitative, qualitativeLoading, qualitativeError, loadQualitative,
         boletim, boletimLoading, boletimError, loadBoletim,
+        seguranca, segurancaLoading, segurancaError, loadSeguranca,
         clearAllData,
       }}
     >
