@@ -51,6 +51,7 @@ export default {
           conforme: "hsl(var(--chart-conforme))",
           "nao-conforme": "hsl(var(--chart-nao-conforme))",
           "nao-se-aplica": "hsl(var(--chart-nao-se-aplica))",
+          atencao: "hsl(var(--chart-atencao))",
         },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",

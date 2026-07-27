@@ -23,8 +23,14 @@ interface GlobalFiltersProps {
   categories?: string[];
   selectedCategory?: string;
   onCategoryChange?: (category: string) => void;
+  /** Plural noun used in the category selector, e.g. "categorias" or "ROPs" */
+  categoryLabel?: string;
+  /** False hides the category selector (e.g. tabs where it has no effect) */
+  showCategory?: boolean;
   /** Extra filter controls rendered after the sector selector */
   children?: React.ReactNode;
+  /** True when module-specific params (rendered via children) are active */
+  hasExtraFilters?: boolean;
 }
 
 export function GlobalFilters ({
@@ -41,7 +47,10 @@ export function GlobalFilters ({
   categories,
   selectedCategory,
   onCategoryChange,
+  categoryLabel = "categorias",
+  showCategory = true,
   children,
+  hasExtraFilters = false,
 }: GlobalFiltersProps) {
   const [startOpen, setStartOpen] = useState(false);
   const [endOpen, setEndOpen] = useState(false);
@@ -49,7 +58,8 @@ export function GlobalFilters ({
   const hasFilters =
     startDate || endDate ||
     (selectedSector && selectedSector !== "__all__") ||
-    (selectedCategory && selectedCategory !== "__all__");
+    (showCategory && selectedCategory && selectedCategory !== "__all__") ||
+    hasExtraFilters;
 
   return (
     <div className="border-b border-border bg-card/60 px-4 py-3 lg:px-6">
@@ -134,13 +144,13 @@ export function GlobalFilters ({
         </Select>
 
         {/* Categoria */}
-        {categories && categories.length > 0 && onCategoryChange && (
+        {showCategory && categories && categories.length > 0 && onCategoryChange && (
           <Select value={selectedCategory ?? "__all__"} onValueChange={onCategoryChange}>
             <SelectTrigger className="w-[220px]">
-              <SelectValue placeholder="Todas as categorias" />
+              <SelectValue placeholder={`Todas as ${categoryLabel}`} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__all__">Todas as categorias</SelectItem>
+              <SelectItem value="__all__">Todas as {categoryLabel}</SelectItem>
               {categories.map((c) => (
                 <SelectItem key={c} value={c}>
                   {c}
@@ -155,7 +165,7 @@ export function GlobalFilters ({
         {hasFilters && (
           <Button variant="ghost" size="sm" onClick={onClear}>
             <X className="mr-1 h-3 w-3" />
-            Limpar
+            Limpar filtros
           </Button>
         )}
       </div>

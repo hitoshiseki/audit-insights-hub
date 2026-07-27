@@ -7,6 +7,12 @@ import { EmptyFilterState } from "@/components/EmptyFilterState";
 import { CategorySection } from "@/components/CategorySection";
 import { QuestionChart } from "@/components/QuestionChart";
 import { QuestionsTable } from "@/components/QuestionsTable";
+import { RopComplianceTab } from "@/components/rops/RopComplianceTab";
+import {
+  RopComplianceFilters,
+  ROP_FILTER_KEYS,
+  useRopFilters,
+} from "@/components/rops/RopComplianceFilters";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAppData } from "@/contexts/AppDataContext";
 import { useDashboardFilters } from "@/hooks/use-dashboard-filters";
@@ -27,9 +33,12 @@ export default function Dashboard () {
   const fileName = rops?.fileName ?? "";
 
   const {
-    startDate, endDate, selectedSector, selectedCategory,
-    setStartDate, setEndDate, setSector, setCategory, clearFilters,
+    searchParams, startDate, endDate, selectedSector, selectedCategory,
+    setStartDate, setEndDate, setSector, setCategory, clearFilters, setParam,
   } = useDashboardFilters();
+  const { hasExtraFilters } = useRopFilters();
+
+  const activeTab = searchParams.get("tab") ?? "charts";
 
   const [exporting, setExporting] = useState(false);
 
@@ -165,7 +174,7 @@ export default function Dashboard () {
         endDate={endDate}
         onStartDateChange={setStartDate}
         onEndDateChange={setEndDate}
-        onClear={() => clearFilters()}
+        onClear={() => clearFilters(ROP_FILTER_KEYS)}
         totalFiltered={filteredRows.length}
         sectors={sectors}
         selectedSector={selectedSector}
@@ -173,7 +182,12 @@ export default function Dashboard () {
         categories={categories}
         selectedCategory={selectedCategory}
         onCategoryChange={setCategory}
-      />
+        categoryLabel="ROPs"
+        showCategory={activeTab !== "compliance"}
+        hasExtraFilters={hasExtraFilters}
+      >
+        {activeTab === "compliance" && <RopComplianceFilters rows={rows} />}
+      </GlobalFilters>
 
       <div className="flex flex-1 overflow-hidden">
         <main className="flex-1 overflow-y-auto p-4 pb-10 lg:p-6 lg:pb-10">
@@ -181,16 +195,15 @@ export default function Dashboard () {
             {filteredRows.length === 0 ? (
               <EmptyFilterState />
             ) : (
-              <>
-            <MetricsOverview metrics={globalMetrics} />
-
-            <Tabs defaultValue="charts">
+            <Tabs value={activeTab} onValueChange={(v) => setParam("tab", v)}>
               <TabsList>
                 <TabsTrigger value="charts">Gráficos</TabsTrigger>
                 <TabsTrigger value="table">Tabela</TabsTrigger>
+                <TabsTrigger value="compliance">Adesão às ROPs</TabsTrigger>
               </TabsList>
 
               <TabsContent value="charts" className="mt-4 space-y-6">
+                <MetricsOverview metrics={globalMetrics} />
                 {displayedGroups.map((group) => (
                   <CategorySection
                     key={group.category}
@@ -200,11 +213,15 @@ export default function Dashboard () {
                 ))}
               </TabsContent>
 
-              <TabsContent value="table" className="mt-4">
+              <TabsContent value="table" className="mt-4 space-y-6">
+                <MetricsOverview metrics={globalMetrics} />
                 <QuestionsTable groups={displayedGroups} />
               </TabsContent>
+
+              <TabsContent value="compliance" className="mt-4">
+                <RopComplianceTab rows={deferredRows} questions={questions} />
+              </TabsContent>
             </Tabs>
-              </>
             )}
           </div>
         </main>

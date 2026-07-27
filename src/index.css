@@ -37,6 +37,7 @@
     --chart-conforme: 160 60% 45%;
     --chart-nao-conforme: 0 72% 51%;
     --chart-nao-se-aplica: 220 10% 60%;
+    --chart-atencao: 45 93% 47%;
 
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 220 25% 10%;
@@ -80,6 +81,7 @@
     --chart-conforme: 160 60% 45%;
     --chart-nao-conforme: 0 72% 55%;
     --chart-nao-se-aplica: 220 10% 50%;
+    --chart-atencao: 45 93% 52%;
 
     --sidebar-background: 222 30% 10%;
     --sidebar-foreground: 210 20% 92%;
