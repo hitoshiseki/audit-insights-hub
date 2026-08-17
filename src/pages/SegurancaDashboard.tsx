@@ -43,7 +43,7 @@ import {
   SEGURANCA_COLORS,
 } from "@/components/seguranca/SegurancaCharts";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import logoPdf from "@/assets/logo-pdf.png";
+import logoPdf from "@/assets/logo-pdf-1.png";
 import logoBoletim from "@/assets/logo_boletim_seguranca.png";
 
 // Solid light navy for header pills — kept solid (not translucent) so html2canvas-pro

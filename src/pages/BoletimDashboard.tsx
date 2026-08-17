@@ -42,7 +42,7 @@ import {
   BOLETIM_COLORS,
 } from "@/components/boletim/BoletimCharts";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import logoPdf from "@/assets/logo-pdf.png";
+import logoPdf from "@/assets/logo-pdf-1.png";
 import logoBoletim from "@/assets/logo_boletim_nao_conformidade.png";
 
 const FOOTER_TEXT =
