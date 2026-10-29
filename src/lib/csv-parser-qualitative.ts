@@ -1,6 +1,6 @@
 import Papa from "papaparse";
-import { parse as parseDate } from "date-fns";
 import { toCsvParseInput } from "./spreadsheet";
+import { parseBrDate, detectDayFirst, normalizeSector } from "./csv-parser-boletim";
 import type {
   QualitativeAuditRow,
   QualitativeParsedQuestion,
@@ -50,18 +50,6 @@ function normalizeResponse (value: string): ResponseValue | null {
   return null;
 }
 
-function parseBrDate (dateStr: string): Date {
-  if (!dateStr) return new Date();
-  try {
-    const d = parseDate(dateStr, "dd/MM/yyyy HH:mm:ss", new Date());
-    if (!isNaN(d.getTime())) return d;
-  } catch { /* empty */ }
-  try {
-    const d = parseDate(dateStr, "dd/MM/yyyy", new Date());
-    if (!isNaN(d.getTime())) return d;
-  } catch { /* empty */ }
-  return new Date();
-}
 
 export async function parseQualitativeCSV (
   file: File
@@ -102,9 +90,11 @@ export async function parseQualitativeCSV (
         const sectorCol = findColumnByName(headers, "Setor");
         const prontuarioCol = findColumnByName(headers, "RH do paciente");
 
-        const rows: QualitativeAuditRow[] = (
-          results.data as Record<string, string>[]
-        ).map((row) => {
+        const data = results.data as Record<string, string>[];
+        const tsKey = timestampCol || "Carimbo de data/hora";
+        const tsDayFirst = detectDayFirst(data.map((r) => r[tsKey] || ""));
+
+        const rows: QualitativeAuditRow[] = data.map((row) => {
           const responses: Record<string, ResponseValue | null> = {};
           for (const qh of questionHeaders) {
             responses[qh] = normalizeResponse(row[qh]);
@@ -113,11 +103,11 @@ export async function parseQualitativeCSV (
           for (const [category, header] of observationByCategory) {
             observations[category] = (row[header] || "").trim();
           }
-          const date = parseBrDate(row[timestampCol || "Carimbo de data/hora"] || "");
+          const date = parseBrDate(row[tsKey] || "", tsDayFirst) ?? new Date();
           return {
             timestamp: date,
             auditDate: date,
-            sector: row[sectorCol || "Setor"] || "",
+            sector: normalizeSector(row[sectorCol || "Setor"] || ""),
             prontuario: (row[prontuarioCol || "RH do paciente"] || "").trim(),
             responses,
             observations,

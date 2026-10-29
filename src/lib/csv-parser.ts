@@ -1,7 +1,7 @@
 import Papa from "papaparse";
-import { parse as parseDate } from "date-fns";
 import type { AuditRow, ParsedQuestion, ResponseValue } from "@/types/audit";
 import { toCsvParseInput } from "./spreadsheet";
+import { parseBrDate, detectDayFirst, normalizeSector } from "./csv-parser-boletim";
 
 const VALID_RESPONSES: string[] = ["CONFORME", "NÃO CONFORME", "NÃO SE APLICA"];
 
@@ -41,20 +41,6 @@ function normalizeResponse (value: string): ResponseValue | null {
   return null;
 }
 
-function parseBrDate (dateStr: string): Date {
-  if (!dateStr) return new Date();
-  // Try "dd/MM/yyyy HH:mm:ss" first
-  try {
-    const d = parseDate(dateStr, "dd/MM/yyyy HH:mm:ss", new Date());
-    if (!isNaN(d.getTime())) return d;
-  } catch { /* empty */ }
-  // Try "dd/MM/yyyy"
-  try {
-    const d = parseDate(dateStr, "dd/MM/yyyy", new Date());
-    if (!isNaN(d.getTime())) return d;
-  } catch { /* empty */ }
-  return new Date();
-}
 
 export async function parseCSV (file: File): Promise<{ rows: AuditRow[]; questions: ParsedQuestion[] }> {
   const input = await toCsvParseInput(file);
@@ -83,16 +69,25 @@ export async function parseCSV (file: File): Promise<{ rows: AuditRow[]; questio
         const sectorCol = findColumnByName(headers, "Setor Auditado");
         const leadershipCol = findColumnByName(headers, "Liderança presente");
 
-        const rows: AuditRow[] = (results.data as Record<string, string>[]).map((row) => {
+        const data = results.data as Record<string, string>[];
+        const tsKey = timestampCol || "Carimbo de data/hora";
+        const auditDateKey = auditDateCol || "Data da Auditoria";
+        // Day/month order is decided per column: Google Forms exports in the
+        // form owner's locale, so dates may arrive as US `M/d/yy`.
+        const tsDayFirst = detectDayFirst(data.map((r) => r[tsKey] || ""));
+        const auditDayFirst = detectDayFirst(data.map((r) => r[auditDateKey] || ""));
+
+        const rows: AuditRow[] = data.map((row) => {
           const responses: Record<string, ResponseValue | null> = {};
           for (const qh of questionHeaders) {
             responses[qh] = normalizeResponse(row[qh]);
           }
+          const timestamp = parseBrDate(row[tsKey] || "", tsDayFirst) ?? new Date();
           return {
-            timestamp: parseBrDate(row[timestampCol || "Carimbo de data/hora"] || ""),
+            timestamp,
             auditor: row[auditorCol || "AUDITOR"] || "",
-            auditDate: parseBrDate(row[auditDateCol || "Data da Auditoria"] || ""),
-            sector: row[sectorCol || "Setor Auditado"] || "",
+            auditDate: parseBrDate(row[auditDateKey] || "", auditDayFirst) ?? timestamp,
+            sector: normalizeSector(row[sectorCol || "Setor Auditado"] || ""),
             leadershipPresent: row[leadershipCol || "Liderança presente"] || "",
             responses,
           };

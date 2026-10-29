@@ -1,6 +1,6 @@
 import Papa from "papaparse";
-import { parse as parseDate } from "date-fns";
 import { toCsvParseInput } from "./spreadsheet";
+import { parseBrDate, detectDayFirst, normalizeSector } from "./csv-parser-boletim";
 import type {
   ClinicalAuditRow,
   ClinicalParsedQuestion,
@@ -50,18 +50,6 @@ function normalizeResponse (value: string): ResponseValue | null {
   return null;
 }
 
-function parseBrDate (dateStr: string): Date {
-  if (!dateStr) return new Date();
-  try {
-    const d = parseDate(dateStr, "dd/MM/yyyy HH:mm:ss", new Date());
-    if (!isNaN(d.getTime())) return d;
-  } catch { /* empty */ }
-  try {
-    const d = parseDate(dateStr, "dd/MM/yyyy", new Date());
-    if (!isNaN(d.getTime())) return d;
-  } catch { /* empty */ }
-  return new Date();
-}
 
 export async function parseClinicalCSV (
   file: File
@@ -95,18 +83,25 @@ export async function parseClinicalCSV (
         const prontuarioCol = findColumnByName(headers, "RH do paciente");
         const auditTypeCol = findColumnByName(headers, "Tipo de auditoria");
 
-        const rows: ClinicalAuditRow[] = (
-          results.data as Record<string, string>[]
-        ).map((row) => {
+        const data = results.data as Record<string, string>[];
+        const tsKey = timestampCol || "Carimbo de data/hora";
+        const auditDateKey = auditDateCol || "Data da auditoria";
+        // Day/month order is decided per column: Google Forms exports in the
+        // form owner's locale, so dates may arrive as US `M/d/yy`.
+        const tsDayFirst = detectDayFirst(data.map((r) => r[tsKey] || ""));
+        const auditDayFirst = detectDayFirst(data.map((r) => r[auditDateKey] || ""));
+
+        const rows: ClinicalAuditRow[] = data.map((row) => {
           const responses: Record<string, ResponseValue | null> = {};
           for (const qh of questionHeaders) {
             responses[qh] = normalizeResponse(row[qh]);
           }
+          const timestamp = parseBrDate(row[tsKey] || "", tsDayFirst) ?? new Date();
           return {
-            timestamp: parseBrDate(row[timestampCol || "Carimbo de data/hora"] || ""),
+            timestamp,
             auditor: row[auditorCol || "Auditor"] || "",
-            auditDate: parseBrDate(row[auditDateCol || "Data da auditoria"] || ""),
-            sector: row[sectorCol || "Setor/ prontuário da Auditoria"] || "",
+            auditDate: parseBrDate(row[auditDateKey] || "", auditDayFirst) ?? timestamp,
+            sector: normalizeSector(row[sectorCol || "Setor/ prontuário da Auditoria"] || ""),
             prontuario: (row[prontuarioCol || "RH do paciente"] || "").trim(),
             auditType: (row[auditTypeCol || "Tipo de auditoria"] || "").trim(),
             responses,

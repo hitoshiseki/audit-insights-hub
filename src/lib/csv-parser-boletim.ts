@@ -43,6 +43,14 @@ const MONTH_FIRST_FORMATS = [
 ];
 
 /**
+ * Canonical form for free-text sector names typed into Google Forms, so
+ * "Clínica Pediátrica" and "CLÍNICA PEDIÁTRICA " group as one sector.
+ */
+export function normalizeSector (value: string): string {
+  return value.trim().replace(/\s+/g, " ").toLocaleUpperCase("pt-BR");
+}
+
+/**
  * Infers whether a column of slash-dates is day-first (BR, default) or
  * month-first (US). Votes come only from unambiguous rows: a first field > 12
  * must be the day (day-first); a second field > 12 must be the day
